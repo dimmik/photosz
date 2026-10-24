@@ -124,12 +124,13 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 
 /* ── Лайтбокс ── */
 .lb { position: fixed; inset: 0; z-index: 10; background: rgba(12,11,9,.96); display: none;
-  grid-template-rows: 1fr auto; color: #efe8dc; }
+  grid-template-rows: minmax(0, 1fr) auto; color: #efe8dc; }
 .lb.open { display: grid; animation: fade .25s; }
 @keyframes fade { from { opacity: 0; } }
-.lb-stage { position: relative; display: grid; place-items: center; min-height: 0;
+.lb-stage { position: relative; display: grid; place-items: center; min-height: 0; overflow: hidden;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   padding: 56px clamp(8px, 6vw, 88px) 12px; touch-action: pan-y; }
-.lb-stage img, .lb-stage video { max-width: 100%; max-height: 100%; object-fit: contain;
+.lb-stage img, .lb-stage video { max-width: 100%; max-height: 100%; min-height: 0; object-fit: contain;
   box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 .lb-cap { padding: 12px clamp(16px, 6vw, 88px) 24px; display: flex; gap: 16px; align-items: baseline;
   justify-content: center; text-align: center; min-height: 64px; }
