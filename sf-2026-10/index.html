@@ -241,6 +241,8 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     }
     const fromHash = new URLSearchParams(location.hash.slice(1)).get("k");
     let saved = null; try { saved = localStorage.getItem(store); } catch (e) {}
+    // ключ из ссылки сразу убираем из адресной строки: скопированный адрес его уже не содержит
+    if (fromHash) history.replaceState(null, "", location.pathname + location.search);
     (async () => {
       if (fromHash && await tryKey(fromHash, true)) return;
       if (saved && await tryKey(saved, true)) return;
