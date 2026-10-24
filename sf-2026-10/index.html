@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Фотоальбом</title>
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f4efe6;
+  --paper-2: #ebe4d7;
+  --ink: #1d1a16;
+  --ink-2: #5d564c;
+  --ink-3: #8f877b;
+  --accent: #c2502e;
+  --rule: #d6cdbd;
+  --tile: #e2dacb;
+  --row-h: 280px;
+  --gap: 10px;
+  --serif: "Fraunces", Georgia, serif;
+  --sans: "Manrope", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15130f; --paper-2: #1d1a15; --ink: #efe8dc; --ink-2: #b3aa9b; --ink-3: #7d7569;
+    --accent: #e7774f; --rule: #332e26; --tile: #26221c;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15130f; --paper-2: #1d1a15; --ink: #efe8dc; --ink-2: #b3aa9b; --ink-3: #7d7569;
+  --accent: #e7774f; --rule: #332e26; --tile: #26221c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased; }
+img, video { display: block; max-width: 100%; }
+
+/* ── Обложка ── */
+.cover { position: relative; height: 100svh; min-height: 520px; overflow: hidden; color: #fff; }
+.cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transform: scale(1.04); animation: drift 18s ease-out forwards; }
+@keyframes drift { to { transform: scale(1); } }
+.cover::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.05) 30%, rgba(0,0,0,.65) 100%); }
+.cover-text { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0;
+  padding: 0 clamp(16px, 6vw, 88px) clamp(40px, 9vh, 96px); }
+.kicker { font: 600 12px/1 var(--sans); letter-spacing: .22em; text-transform: uppercase; opacity: .85; }
+.cover h1 { font: 400 clamp(48px, 10vw, 148px)/.92 var(--serif); font-variation-settings: "opsz" 144;
+  letter-spacing: -.02em; margin: 18px 0 20px; text-wrap: balance; }
+.cover .dates { font: italic 300 clamp(18px, 2.2vw, 26px)/1.3 var(--serif); opacity: .92; }
+.scroll-hint { position: absolute; z-index: 1; right: clamp(16px, 6vw, 88px); bottom: clamp(40px, 9vh, 96px);
+  font: 600 11px/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: #fff; opacity: .8;
+  text-decoration: none; writing-mode: vertical-rl; }
+.scroll-hint::after { content: ""; display: inline-block; width: 1px; height: 48px; background: #fff;
+  margin-top: 12px; vertical-align: top; }
+
+/* ── Оглавление ── */
+.toc { max-width: 1240px; margin: 0 auto; padding: 72px clamp(16px, 4vw, 48px) 24px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 32px; counter-reset: toc; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc a { display: grid; grid-template-columns: 36px 1fr; gap: 8px; padding: 14px 0 16px;
+  color: inherit; text-decoration: none; }
+.toc a:hover .toc-title { color: var(--accent); }
+.toc-num { font: 400 15px/1.4 var(--serif); color: var(--accent); }
+.toc-title { font: 500 17px/1.35 var(--serif); transition: color .2s; }
+.toc-day { display: block; font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+
+/* ── Глава ── */
+.chapter { max-width: 1240px; margin: 0 auto; padding: 88px clamp(16px, 4vw, 48px) 0; }
+.ch-head { display: grid; grid-template-columns: auto 1fr; gap: 0 clamp(20px, 3vw, 40px);
+  align-items: end; margin-bottom: 32px; }
+.ch-num { font: 300 clamp(72px, 11vw, 152px)/.8 var(--serif); font-variation-settings: "opsz" 144;
+  color: transparent; -webkit-text-stroke: 1px var(--accent); letter-spacing: -.04em; }
+.ch-meta { font: 600 12px/1.5 var(--sans); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 10px; }
+.ch-meta span + span::before { content: "·"; margin: 0 .6em; color: var(--rule); }
+.ch-title { font: 400 clamp(30px, 4.4vw, 54px)/1.04 var(--serif); letter-spacing: -.015em; margin: 0;
+  text-wrap: balance; }
+.ch-desc { grid-column: 2; font: italic 300 clamp(17px, 1.6vw, 20px)/1.5 var(--serif); color: var(--ink-2);
+  margin: 14px 0 0; max-width: 46ch; }
+
+/* Выровненная мозаика: строки собирает JS (layout), здесь только базовый вид */
+.mosaic { display: flex; flex-direction: column; gap: var(--gap); }
+.mrow { display: flex; gap: var(--gap); }
+.tile { position: relative; margin: 0; flex: none; background: var(--tile); cursor: zoom-in;
+  overflow: hidden; border-radius: 2px; }
+.tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .6s cubic-bezier(.2,.7,.2,1), opacity .5s; opacity: 0; }
+.tile img.loaded { opacity: 1; }
+.tile:hover img { transform: scale(1.025); }
+.tile figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 14px 11px;
+  color: #fff; font: 500 13.5px/1.35 var(--sans);
+  background: linear-gradient(transparent, rgba(0,0,0,.6)); opacity: 0; transform: translateY(6px);
+  transition: opacity .3s, transform .3s; pointer-events: none; }
+.tile:hover figcaption, .tile:focus-visible figcaption { opacity: 1; transform: none; }
+.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.play { position: absolute; z-index: 1; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px;
+  border-radius: 50%; background: rgba(255,255,255,.9); display: grid; place-items: center;
+  box-shadow: 0 6px 24px rgba(0,0,0,.25); transition: transform .3s; }
+.tile:hover .play { transform: scale(1.08); }
+.play::after { content: ""; border-left: 18px solid #1d1a16; border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent; margin-left: 5px; }
+.dur { position: absolute; z-index: 1; top: 10px; right: 10px; padding: 3px 8px; border-radius: 20px;
+  background: rgba(0,0,0,.55); color: #fff; font: 600 11.5px/1.4 var(--sans); letter-spacing: .04em; }
+@media (hover: none) {
+  .tile figcaption { opacity: 1; transform: none; font-size: 12.5px; padding-top: 22px; }
+}
+
+footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw, 48px) 56px;
+  border-top: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; color: var(--ink-3); font-size: 13px; }
+.theme-btn { background: none; border: 1px solid var(--rule); color: var(--ink-2); border-radius: 20px;
+  padding: 4px 14px; font: inherit; cursor: pointer; }
+
+/* ── Лайтбокс ── */
+.lb { position: fixed; inset: 0; z-index: 10; background: rgba(12,11,9,.96); display: none;
+  grid-template-rows: 1fr auto; color: #efe8dc; }
+.lb.open { display: grid; animation: fade .25s; }
+@keyframes fade { from { opacity: 0; } }
+.lb-stage { position: relative; display: grid; place-items: center; min-height: 0;
+  padding: 56px clamp(8px, 6vw, 88px) 12px; touch-action: pan-y; }
+.lb-stage img, .lb-stage video { max-width: 100%; max-height: 100%; object-fit: contain;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.lb-cap { padding: 12px clamp(16px, 6vw, 88px) 24px; display: flex; gap: 16px; align-items: baseline;
+  justify-content: center; text-align: center; min-height: 64px; }
+.lb-cap b { font: italic 400 19px/1.4 var(--serif); }
+.lb-cap small { color: #8f877b; font-size: 13px; white-space: nowrap; }
+.lb button { position: absolute; z-index: 2; background: none; border: 0; color: #efe8dc; cursor: pointer;
+  font: 300 34px/1 var(--sans); padding: 16px; opacity: .7; transition: opacity .2s; }
+.lb button:hover { opacity: 1; }
+.lb-close { top: 4px; right: 8px; }
+.lb-prev, .lb-next { top: 50%; transform: translateY(-50%); font-size: 44px !important; }
+.lb-prev { left: 4px; } .lb-next { right: 4px; }
+.lb-count { position: absolute; top: 20px; left: 24px; font: 600 12px/1 var(--sans); letter-spacing: .14em;
+  color: #8f877b; }
+
+/* ── Экран ключа ── */
+.lock { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: var(--paper); }
+.lock[hidden] { display: none; }
+.lock-box { width: min(420px, 100%); text-align: center; }
+.lock-box .kicker { color: var(--accent); }
+.lock-box h1 { font: 400 clamp(34px, 6vw, 48px)/1.05 var(--serif); margin: 14px 0 8px; }
+.lock-box p { color: var(--ink-2); margin: 0 0 24px; }
+.lock-box input { width: 100%; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 4px;
+  background: var(--paper-2); color: var(--ink); font: 500 18px/1 ui-monospace, monospace; letter-spacing: .08em;
+  text-align: center; }
+.lock-box input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lock-box button { margin-top: 12px; width: 100%; padding: 13px; border: 0; border-radius: 4px; cursor: pointer;
+  background: var(--ink); color: var(--paper); font: 600 15px/1 var(--sans); letter-spacing: .04em; }
+.lock-err { min-height: 22px; margin-top: 12px; color: var(--accent); font-size: 14px; }
+.lb-wait { color: #8f877b; font: italic 300 18px/1 var(--serif); }
+
+@media (max-width: 720px) {
+  :root { --gap: 6px; }
+  .chapter { padding-top: 64px; }
+  .ch-head { grid-template-columns: 1fr; }
+  .ch-num { font-size: 64px; margin-bottom: 10px; }
+  .ch-desc { grid-column: 1; }
+  .lb-prev, .lb-next { display: none; }
+  .scroll-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Просмотр">
+  <div class="lb-stage" id="lb-stage"></div>
+  <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
+  <span class="lb-count" id="lb-count"></span>
+  <button class="lb-close" id="lb-close" aria-label="Закрыть">×</button>
+  <button class="lb-prev" id="lb-prev" aria-label="Назад">‹</button>
+  <button class="lb-next" id="lb-next" aria-label="Вперёд">›</button>
+</div>
+<div class="lock" id="lock" hidden>
+  <form class="lock-box" id="lock-form" autocomplete="off">
+    <div class="kicker">Фотоальбом</div>
+    <h1>Закрытый альбом</h1>
+    <p>Введите ключ доступа.</p>
+    <input id="lock-key" type="text" spellcheck="false" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX" aria-label="Ключ">
+    <button type="submit">Открыть</button>
+    <div class="lock-err" id="lock-err"></div>
+  </form>
+</div>
+<script id="cfg" type="application/json">{"mode": "enc", "salt": "1P97RNLvRXwaieZkI/u4OQ==", "iter": 250000, "album": "a6dabc1f54bea6b8bddb.bin"}</script>
+<script>
+(function () {
+  const CFG = JSON.parse(document.getElementById("cfg").textContent);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const pad = n => String(n).padStart(2, "0");
+  const dur = s => Math.floor(s / 60) + ":" + pad(Math.round(s % 60));
+
+  // ── источник медиа: url(имя) → Promise<URL>. Открытый режим — файлы как есть; закрытый — расшифровка ──
+  if (CFG.mode === "plain") render(CFG.album, n => Promise.resolve("media/" + n));
+  else unlockFlow();
+
+  function unlockFlow() {
+    const lock = document.getElementById("lock"), err = document.getElementById("lock-err");
+    const norm = k => (k || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+    const store = "albumkey:" + location.pathname;
+    async function tryKey(k, quiet) {
+      try {
+        const enc = new TextEncoder();
+        const base = await crypto.subtle.importKey("raw", enc.encode(norm(k)), "PBKDF2", false, ["deriveKey"]);
+        const key = await crypto.subtle.deriveKey(
+          {name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(atob(CFG.salt), c => c.charCodeAt(0)), iterations: CFG.iter},
+          base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
+        const dec = async file => {
+          const r = await fetch("data/" + file);
+          if (!r.ok) throw new Error("fetch " + r.status);
+          const buf = new Uint8Array(await r.arrayBuffer());
+          return crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(0, 12)}, key, buf.slice(12));
+        };
+        const album = JSON.parse(new TextDecoder().decode(await dec(CFG.album)));
+        try { localStorage.setItem(store, norm(k)); } catch (e) {}
+        lock.hidden = true;
+        const cache = {};
+        const types = {jpg: "image/jpeg", mp4: "video/mp4"};
+        render(album, n => cache[n] || (cache[n] = dec(album.files[n]).then(b =>
+          URL.createObjectURL(new Blob([b], {type: types[n.split(".").pop()]})))));
+        return true;
+      } catch (e) {
+        if (!quiet) err.textContent = e.name === "OperationError" ? "Ключ не подходит" : "Не удалось загрузить альбом";
+        return false;
+      }
+    }
+    const fromHash = new URLSearchParams(location.hash.slice(1)).get("k");
+    let saved = null; try { saved = localStorage.getItem(store); } catch (e) {}
+    (async () => {
+      if (fromHash && await tryKey(fromHash, true)) return;
+      if (saved && await tryKey(saved, true)) return;
+      lock.hidden = false;
+      document.getElementById("lock-key").focus();
+    })();
+    document.getElementById("lock-form").addEventListener("submit", e => {
+      e.preventDefault(); err.textContent = "…"; tryKey(document.getElementById("lock-key").value);
+    });
+  }
+
+  function render(A, url) {
+  const flat = [];
+  let h = `<header class="cover">
+    <img data-name="${A.cover}.jpg" alt="">
+    <div class="cover-text">
+      <div class="kicker">Фотоальбом · ${A.chapters.length} глав</div>
+      <h1>${esc(A.title)}</h1>
+      <div class="dates">${esc(A.dates)}</div>
+    </div>
+    <a class="scroll-hint" href="#toc">Листать</a>
+  </header>
+  <nav class="toc" id="toc"><ol>${A.chapters.map((c, i) => `
+    <li><a href="#ch${i + 1}"><span class="toc-num">${pad(i + 1)}</span>
+      <span><span class="toc-title">${esc(c.title)}</span><span class="toc-day">${esc(c.day)}</span></span></a></li>`).join("")}
+  </ol></nav>`;
+
+  A.chapters.forEach((c, ci) => {
+    h += `<section class="chapter" id="ch${ci + 1}">
+      <div class="ch-head">
+        <div class="ch-num">${pad(ci + 1)}</div>
+        <div>
+          <div class="ch-meta"><span>${esc(c.day)}</span><span>${esc(c.time)}</span>${c.place ? `<span>${esc(c.place)}</span>` : ""}</div>
+          <h2 class="ch-title">${esc(c.title)}</h2>
+        </div>
+        ${c.desc ? `<p class="ch-desc">${esc(c.desc)}</p>` : ""}
+      </div>
+      <div class="mosaic">`;
+    c.items.forEach(it => {
+      const k = flat.push({...it, chapter: c}) - 1;
+      const ar = (it.w / it.h).toFixed(3);
+      const isV = it.type === "video";
+      // превью; для крупных плиток (герой) — полноразмерный файл
+      const names = isV ? `data-name="${it.id}_p.jpg"` : `data-name="${it.id}_t.jpg" data-full="${it.id}.jpg"`;
+      h += `<figure class="tile${it.hero ? " hero" : ""}" data-ar="${ar}" tabindex="0" data-k="${k}">
+        <img ${names} alt="${esc(it.caption)}" decoding="async">
+        ${isV ? `<span class="play"></span><span class="dur">${dur(it.duration)}</span>` : ""}
+        ${it.caption ? `<figcaption>${esc(it.caption)}</figcaption>` : ""}
+      </figure>`;
+    });
+    h += `</div></section>`;
+  });
+  h += `<footer><span>${esc(A.title)} · ${esc(A.dates)}</span>
+    <button class="theme-btn" id="theme">Тема</button></footer>`;
+  document.getElementById("app").innerHTML = h;
+
+  // ── выровненные строки: плитки в строке одной высоты и вместе заполняют ширину ──
+  function layout() {
+    const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gap")) || 10;
+    document.querySelectorAll(".mosaic").forEach(m => {
+      const W = m.clientWidth;
+      const target = W < 600 ? W / 1.6 : Math.max(240, Math.min(360, W / 3.6));
+      const tiles = [...m.querySelectorAll(".tile")];
+      const rows = []; let row = [], sum = 0;
+      tiles.forEach(t => {
+        const ar = +t.dataset.ar;
+        // герой — отдельной строкой во всю ширину (высота ограничена, лишнее обрезается)
+        if (t.classList.contains("hero")) {
+          if (row.length) { rows.push([row, sum]); row = []; sum = 0; }
+          rows.push([[t], Math.max(ar, W / Math.min(innerHeight * 0.78, W / 1.2)), false, true]);
+          return;
+        }
+        row.push(t); sum += ar;
+        if (sum * target + gap * (row.length - 1) >= W) { rows.push([row, sum]); row = []; sum = 0; }
+      });
+      if (row.length) {
+        // хвост: если он почти полный — растягиваем, иначе оставляем целевую высоту
+        const fill = (sum * target + gap * (row.length - 1)) / W;
+        if (fill < 0.45 && rows.length && !rows[rows.length - 1][3]) { const last = rows.pop(); rows.push([last[0].concat(row), last[1] + sum]); }
+        else rows.push([row, sum, true]);
+      }
+      m.textContent = "";
+      rows.forEach(([r, s, short]) => {
+        // неполный хвост растягиваем, но не выше 1.8 × целевой высоты
+        const hgt = short ? Math.min((W - gap * (r.length - 1)) / s, target * 1.8) : (W - gap * (r.length - 1)) / s;
+        const div = document.createElement("div"); div.className = "mrow";
+        r.forEach(t => {
+          const w = r.length === 1 && !short ? W : Math.min(W, hgt * t.dataset.ar);
+          t.style.width = w + "px"; t.style.height = hgt + "px";
+          div.appendChild(t);
+        });
+        m.appendChild(div);
+      });
+    });
+  }
+  layout();
+  let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(layout, 120); });
+
+  // ── ленивая загрузка: картинка получает адрес, когда плитка подходит к экрану ──
+  function load(img) {
+    const big = img.dataset.full && img.parentElement.clientWidth * (devicePixelRatio || 1) > 900;
+    url(big ? img.dataset.full : img.dataset.name).then(u => {
+      img.addEventListener("load", () => img.classList.add("loaded"), {once: true});
+      img.src = u;
+    });
+  }
+  const io = "IntersectionObserver" in window && new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { io.unobserve(e.target); load(e.target); }
+  }), {rootMargin: "800px 0px"});
+  document.querySelectorAll("img[data-name]").forEach(img => io ? io.observe(img) : load(img));
+
+  // тема: авто → тёмная → светлая; выбор запоминается (если хранилище доступно)
+  const root = document.documentElement;
+  try { const t = localStorage.getItem("theme"); if (t) root.dataset.theme = t; } catch (e) {}
+  document.getElementById("theme").onclick = () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+  };
+
+  // ── лайтбокс ──
+  const lb = document.getElementById("lb"), stage = document.getElementById("lb-stage");
+  let cur = -1;
+  function show(k) {
+    cur = (k + flat.length) % flat.length;
+    const it = flat[cur], my = cur;
+    stage.innerHTML = `<div class="lb-wait">Загрузка…</div>`;
+    const isV = it.type === "video";
+    Promise.all([url(it.id + (isV ? ".mp4" : ".jpg")), isV ? url(it.id + "_p.jpg") : null]).then(([u, p]) => {
+      if (my !== cur || !lb.classList.contains("open")) return;
+      stage.innerHTML = isV
+        ? `<video src="${u}" poster="${p}" controls autoplay playsinline></video>`
+        : `<img src="${u}" alt="${esc(it.caption)}">`;
+    });
+    document.getElementById("lb-cap").textContent = it.caption || "";
+    document.getElementById("lb-sub").textContent = `${it.chapter.day}, ${it.time}`;
+    document.getElementById("lb-count").textContent = `${cur + 1} / ${flat.length}`;
+    // заранее готовим соседние фото
+    [cur + 1, cur - 1].forEach(j => { const n = flat[(j + flat.length) % flat.length];
+      if (n.type === "photo") url(n.id + ".jpg").then(u => { new Image().src = u; }); });
+  }
+  function open(k) { lb.classList.add("open"); document.body.style.overflow = "hidden"; show(k); }
+  function close() { lb.classList.remove("open"); stage.innerHTML = ""; document.body.style.overflow = "";
+    const t = document.querySelector(`.tile[data-k="${cur}"]`); t && t.focus({preventScroll: true}); }
+  document.getElementById("app").addEventListener("click", e => {
+    const t = e.target.closest(".tile"); if (t) open(+t.dataset.k);
+  });
+  document.getElementById("app").addEventListener("keydown", e => {
+    const t = e.target.closest(".tile"); if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(+t.dataset.k); }
+  });
+  document.getElementById("lb-close").onclick = close;
+  document.getElementById("lb-prev").onclick = () => show(cur - 1);
+  document.getElementById("lb-next").onclick = () => show(cur + 1);
+  stage.addEventListener("click", e => { if (e.target === stage) close(); });
+  addEventListener("keydown", e => {
+    if (!lb.classList.contains("open")) return;
+    if (e.key === "Escape") close();
+    else if (e.key === "ArrowRight") show(cur + 1);
+    else if (e.key === "ArrowLeft") show(cur - 1);
+  });
+  let x0 = null;
+  stage.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, {passive: true});
+  stage.addEventListener("touchend", e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+  });
+  }
+})();
+</script>
+</body>
+</html>
