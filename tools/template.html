@@ -113,6 +113,10 @@ img, video { display: block; max-width: 100%; }
   background: var(--accent); color: #fff; font: 600 11px/1.4 var(--sans); letter-spacing: .08em;
   text-transform: uppercase; }
 .fun::before { content: "✦ "; }
+.fun.info { background: rgba(20,18,15,.78); }
+.fun.info::before { content: "i  "; font-style: italic; font-family: var(--serif, serif); }
+.info-note { max-width: 70ch; margin: 2px 0 10px; font: 400 15px/1.55 var(--sans); color: var(--ink-2); }
+.info-note b { font-weight: 600; color: var(--ink); }
 @media (hover: none) {
   .tile figcaption { opacity: 1; transform: none; font-size: 12.5px; padding-top: 22px; }
 }
@@ -219,11 +223,11 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   const I18N = {
     ru: {album: "Фотоальбом", chapters: n => n + " " + (n % 10 === 1 && n % 100 !== 11 ? "глава" :
           n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "главы" : "глав"),
-         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", loading: "Загрузка…",
+         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…",
          lockTitle: "Закрытый альбом", lockText: "Введите ключ доступа.", open: "Открыть",
          badKey: "Ключ не подходит", failed: "Не удалось загрузить альбом", other: "EN", lang: "ru"},
     en: {album: "Photo album", chapters: n => n + (n === 1 ? " chapter" : " chapters"),
-         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", loading: "Loading…",
+         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…",
          lockTitle: "Private album", lockText: "Enter the access key.", open: "Open",
          badKey: "Wrong key", failed: "Could not load the album", other: "RU", lang: "en"},
   };
@@ -335,6 +339,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
       h += `<figure class="tile${it.hero ? " hero" : ""}" data-ar="${ar}" tabindex="0" data-k="${k}"${it.series ? ` data-series="${it.series}"` : ""}>
         <img ${names} alt="${esc(tx(it, "caption"))}" decoding="async">
         ${isV ? `<span class="play"></span><span class="dur">${dur(it.duration)}</span>` : ""}
+        ${it.info && !it.sidx ? `<span class="fun info">${T.info}</span>` : ""}
         ${it.fun && !it.sidx ? `<span class="fun">${it.series ? T.series : T.moment}</span>` : ""}
         ${it.caption && !it.sidx ? `<figcaption>${esc(tx(it, "caption"))}</figcaption>` : ""}
       </figure>`;
@@ -393,6 +398,13 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
           div.appendChild(t);
         });
         m.appendChild(div);
+        // текст таблички — под её строкой
+        const it = flat[+r[0].dataset.k];
+        if (it.note) {
+          const p = document.createElement("p"); p.className = "info-note";
+          p.innerHTML = `<b>${esc(tx(it, "caption"))}.</b> ${esc(tx(it, "note"))}`;
+          m.appendChild(p);
+        }
       });
     });
   }
@@ -442,7 +454,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
         ? `<video src="${u}" poster="${p}" controls autoplay playsinline></video>`
         : `<img src="${u}" alt="${esc(tx(it, "caption"))}">`;
     });
-    document.getElementById("lb-cap").textContent = tx(it, "caption");
+    document.getElementById("lb-cap").textContent = tx(it, "caption") + (it.note ? ". " + tx(it, "note") : "");
     document.getElementById("lb-sub").textContent = `${tx(it.chapter, "day")}, ${it.time}`;
     document.getElementById("lb-count").textContent = `${cur + 1} / ${flat.length}`;
     // заранее готовим соседние фото

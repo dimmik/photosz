@@ -4,6 +4,8 @@
 
   python3 tools/album.py prepare  <zip | папка>     распаковка, метаданные, разделы, листы, промпты прохода 1
   python3 tools/album.py shortlist <альбом>         шорт-лист по оценкам, листы и промпт прохода 2
+  python3 tools/album.py extras   <альбом>          после прохода 2: листы табличек и лиц, промпты для них
+  python3 tools/album.py people   <альбом>          лист с лицами в камеру — спросить пользователя, кто это
   python3 tools/album.py build    <альбом>          сборка album/ (+ скриншоты глав в .shots/)
   python3 tools/album.py publish  <альбом> [--slug] шифр → <slug>/ в корне, push, ожидание Pages, проверка ссылки
   python3 tools/album.py status   <альбом>          что сделано / чего не хватает
@@ -162,6 +164,26 @@ def cmd_shortlist(root):
     print(f"\nПРОМПТ ПРОХОДА 2:\n  sonnet  {p}")
 
 
+# ── extras: таблички и лица ──────────────────────────────────────────────────
+
+def cmd_extras(root):
+    work = os.path.join(root, "work")
+    py("build.py", root)                                 # нужен album.json: лица ищем среди фото альбома
+    py("extras.py", root, "signs")
+    py("extras.py", root, "faces")
+    t, prompts = trip(root), []
+    signs = sorted(glob.glob(os.path.join(work, "extras", "sign_*.jpg")))
+    if signs:
+        prompts.append(("sonnet", write_prompt(root, "signs.txt", tpl(
+            "signs.md", TRIP=t, SHEETS=", ".join(signs), OUT=os.path.join(work, "signs.json")))))
+    faces = sorted(glob.glob(os.path.join(work, "extras", "faces_*.jpg")))
+    prompts.append(("haiku", write_prompt(root, "faces.txt", tpl(
+        "faces.md", SHEETS=", ".join(faces), OUT=os.path.join(work, "faces.json")))))
+    print("\nПРОМПТЫ ДОПОЛНЕНИЙ (параллельно):")
+    for model, p in prompts:
+        print(f"  {model:7} {p}")
+
+
 # ── build ────────────────────────────────────────────────────────────────────
 
 def cmd_build(root, title=None):
@@ -304,7 +326,7 @@ def cmd_status(root):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push"])
+    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people"])
     ap.add_argument("path", nargs="?", default=".")
     ap.add_argument("--slug")
     ap.add_argument("--title")
@@ -312,7 +334,8 @@ def main():
     a.path = os.path.abspath(a.path)
     {"prepare": lambda: cmd_prepare(a.path), "shortlist": lambda: cmd_shortlist(a.path),
      "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug),
-     "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push}[a.cmd]()
+     "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
+     "extras": lambda: cmd_extras(a.path), "people": lambda: py("extras.py", a.path, "people")}[a.cmd]()
 
 
 if __name__ == "__main__":

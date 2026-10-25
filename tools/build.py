@@ -5,6 +5,8 @@
 
 Читает work/meta.json, work/sections.json, work/picks.json (выбор + подписи) и
 необязательный work/overrides.json (ручные правки, имеют приоритет над picks.json).
+Дополнения: work/signs.json (таблички + снимки объекта, см. extras.py) и work/people.json
+({id: {"ru": "Маша", "en": "Masha"}} — кто на фото, со слов пользователя).
 Пишет <папка>/album/index.html, album/album.json, album/media/*.
 """
 import argparse, html, json, os, subprocess
@@ -36,6 +38,19 @@ def fmt_day_en(t):
 def en(d, key="caption"):
     """Английский вариант текстового поля (тексты двуязычные: <поле> и <поле>_en)."""
     return {key + "_en": d[key + "_en"]} if d.get(key + "_en") else {}
+
+
+TRANSLIT = dict(zip("абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+                    ["a", "b", "v", "g", "d", "e", "e", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p", "r", "s",
+                     "t", "u", "f", "kh", "ts", "ch", "sh", "shch", "", "y", "", "e", "yu", "ya"]))
+
+
+def translit(s):
+    return "".join(TRANSLIT.get(c.lower(), c).capitalize() if c.isupper() else TRANSLIT.get(c, c) for c in s)
+
+
+def with_names(cap, names):
+    return f"{cap} — {names}" if cap else names
 
 
 def fmt_day(t):
@@ -81,6 +96,9 @@ def main():
     overrides = json.load(open(ov_p)) if os.path.exists(ov_p) else {}
     media = os.path.join(root, "album", "media")
     os.makedirs(media, exist_ok=True)
+    load = lambda name: json.load(open(os.path.join(work, name))) if os.path.exists(os.path.join(work, name)) else {}
+    signs, people = load("signs.json"), load("people.json")
+    smap = load(os.path.join("extras", "signs_map.json"))
 
     chapters, jobs = [], []
     for s in sections:
@@ -109,8 +127,27 @@ def main():
                 for i, fid in enumerate(fs["ids"]):
                     items.append({"id": fid, "type": "photo", "caption": fs["caption"], **en(fs), "fun": True,
                                   "series": fs["key"], "sidx": i})
-        # герой открывает главу, остальное — по времени
-        items.sort(key=lambda it: (not it.get("hero"), meta[it["id"]]["time"]))
+        # табличка с описанием + 1–2 снимка самого объекта — одной строкой, текст под ней
+        if p.get("signs", True):
+            for n, sg in sorted(signs.items()):
+                m = smap.get(n)
+                if sg.get("skip") or not m or m["section"] != key:
+                    continue
+                ids = [m["sign"]] + [m["objects"][i - 1] for i in sg.get("objects", [])[:2]]
+                items = [it for it in items if it["id"] not in ids]
+                for i, fid in enumerate(ids):
+                    it = {"id": fid, "type": "photo", "caption": sg["title"], "caption_en": sg.get("title_en", ""),
+                          "info": True, "series": "info" + n, "sidx": i, "_t": meta[m["sign"]]["time"]}
+                    if i == 0:
+                        it.update(note=sg.get("text", ""), note_en=sg.get("text_en", ""))
+                    items.append(it)
+        for it in items:                                 # кто на фото (со слов пользователя)
+            who = people.get(it["id"])
+            if who:
+                it["caption"] = with_names(it["caption"], who["ru"])
+                it["caption_en"] = with_names(it.get("caption_en", ""), who.get("en") or translit(who["ru"]))
+        # герой открывает главу, остальное — по времени (табличка — вместе со своими снимками)
+        items.sort(key=lambda it: (not it.get("hero"), it.pop("_t", None) or meta[it["id"]]["time"], it.get("sidx", 0)))
         for it in items:
             src = os.path.join(root, "src", meta[it["id"]]["file"])
             fn = photo_job if it["type"] == "photo" else video_job
