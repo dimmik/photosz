@@ -481,6 +481,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   // история: открытие фото — новая запись (#p=<id>, можно ссылаться), листание её заменяет,
   // поэтому «Назад» в браузере закрывает просмотр и возвращает к альбому, а не уводит со страницы
   const here = location.pathname + location.search;
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   const mark = () => history.replaceState({lb: 1}, "", here + "#p=" + flat[cur].id);
   function openLb(k) { lb.classList.add("open"); document.body.style.overflow = "hidden"; show(k); }
   function open(k) { history.pushState({lb: 1}, "", here + "#p=" + flat[k].id); openLb(k); }
@@ -488,12 +489,15 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     if (!lb.classList.contains("open")) return;
     lb.classList.remove("open"); stage.innerHTML = ""; document.body.style.overflow = "";
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    const t = document.querySelector(`.tile[data-k="${cur}"]`);
-    if (t) {
+    // вернуться в список к той фотке, которую смотрели (браузер сам прокрутку не восстанавливает —
+    // scrollRestoration = manual; повтор через 300 мс — после выхода из полноэкранного и перестройки рядов)
+    const k = cur, go = () => {
+      const t = document.querySelector(`.tile[data-k="${k}"]`); if (!t) return;
       const r = t.getBoundingClientRect();
-      if (r.bottom < 0 || r.top > innerHeight) t.scrollIntoView({block: "center"});
+      if (r.top < 0 || r.bottom > innerHeight) t.scrollIntoView({block: "center"});
       t.focus({preventScroll: true});
-    }
+    };
+    requestAnimationFrame(go); setTimeout(go, 300);
   }
   function close() {
     if (history.state && history.state.lb) history.back();      // закроется в popstate
