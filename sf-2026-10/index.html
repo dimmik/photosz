@@ -185,6 +185,10 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 .lock-box button { margin-top: 12px; width: 100%; padding: 13px; border: 0; border-radius: 4px; cursor: pointer;
   background: var(--ink); color: var(--paper); font: 600 15px/1 var(--sans); letter-spacing: .04em; }
 .lock-err { min-height: 22px; margin-top: 12px; color: var(--accent); font-size: 14px; }
+.lb-toast { position: absolute; z-index: 3; left: 50%; top: 64px; transform: translateX(-50%); padding: 8px 16px;
+  border-radius: 20px; background: rgba(239,232,220,.95); color: #1d1a16; font: 600 13px/1.3 var(--sans);
+  pointer-events: none; opacity: 0; transition: opacity .25s; }
+.lb-toast.on { opacity: 1; }
 .lb-wait { color: #8f877b; font: italic 300 18px/1 var(--serif); }
 
 @media (max-width: 720px) {
@@ -209,7 +213,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
   <span class="lb-count" id="lb-count"></span>
   <button class="lb-close" id="lb-close" aria-label="Закрыть">×</button>
-  <div class="lb-zoom"><button id="lb-fs" aria-label="Fullscreen" hidden><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5"/></svg></button><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
+  <div class="lb-zoom"><button id="lb-link" aria-label="Link"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1"/></svg></button><button id="lb-fs" aria-label="Fullscreen" hidden><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5"/></svg></button><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
   <button class="lb-prev" id="lb-prev" aria-label="Назад">‹</button>
   <button class="lb-next" id="lb-next" aria-label="Вперёд">›</button>
 </div>
@@ -237,11 +241,11 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   const I18N = {
     ru: {album: "Фотоальбом", chapters: n => n + " " + (n % 10 === 1 && n % 100 !== 11 ? "глава" :
           n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "главы" : "глав"),
-         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…",
+         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:",
          lockTitle: "Закрытый альбом", lockText: "Введите ключ доступа.", open: "Открыть",
          badKey: "Ключ не подходит", failed: "Не удалось загрузить альбом", other: "EN", lang: "ru"},
     en: {album: "Photo album", chapters: n => n + (n === 1 ? " chapter" : " chapters"),
-         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…",
+         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", copied: "Link to this photo copied", copyFail: "Copy the link:",
          lockTitle: "Private album", lockText: "Enter the access key.", open: "Open",
          badKey: "Wrong key", failed: "Could not load the album", other: "RU", lang: "en"},
   };
@@ -290,7 +294,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
         const cache = {};
         const types = {jpg: "image/jpeg", mp4: "video/mp4"};
         render(album, n => cache[n] || (cache[n] = dec(album.files[n]).then(b =>
-          URL.createObjectURL(new Blob([b], {type: types[n.split(".").pop()]})))));
+          URL.createObjectURL(new Blob([b], {type: types[n.split(".").pop()]})))), norm(k).match(/.{1,4}/g).join("-"));
         return true;
       } catch (e) {
         if (!quiet) err.textContent = e.name === "OperationError" ? T.badKey : T.failed;
@@ -313,7 +317,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     });
   }
 
-  function render(A, url) {
+  function render(A, url, KEY) {
   const flat = [];
   const app = document.getElementById("app");
   function draw() {
@@ -406,6 +410,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
         // неполный хвост растягиваем, но не выше 1.8 × целевой высоты
         let hgt = short ? Math.min((W - gap * (r.length - 1)) / s, target * 1.3) : (W - gap * (r.length - 1)) / s;
         if (r[0].dataset.series) hgt = Math.min(hgt, target * 1.5);       // серия из вертикальных кадров не раздувается
+        if (r.length === 1 && r[0].dataset.series && r[0].dataset.series.startsWith("info")) hgt = Math.min(hgt, target * 1.15);   // табличка без снимков объекта
         const div = document.createElement("div"); div.className = "mrow";
         r.forEach(t => {
           const w = r.length === 1 && !short && !t.dataset.series ? W : Math.min(W, hgt * t.dataset.ar);
@@ -514,6 +519,23 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     lb.classList.contains("open") ? show(k) : openLb(k);
   }
   addEventListener("popstate", () => fromUrl(false));
+
+  // ссылка на текущее фото — сразу с ключом (у получателя ключ может быть не сохранён)
+  const toast = document.createElement("div"); toast.className = "lb-toast"; lb.appendChild(toast);
+  let toastT;
+  const say = t => { toast.textContent = t; toast.classList.add("on"); clearTimeout(toastT);
+    toastT = setTimeout(() => toast.classList.remove("on"), 2200); };
+  document.getElementById("lb-link").onclick = async () => {
+    const it = flat[cur];
+    const link = location.origin + here + "#" + (KEY ? "k=" + KEY + "&" : "") + "p=" + encodeURIComponent(it.id) +
+      (L === "en" ? "&l=en" : "");
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {   // телефон — системное «Поделиться»
+      try { await navigator.share({title: tx(it, "caption") || tx(A, "title"), url: link}); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    try { await navigator.clipboard.writeText(link); say(T.copied); }
+    catch (e) { prompt(T.copyFail, link); }
+  };
   app.addEventListener("click", e => {
     const act = e.target.closest("[data-act]");
     if (act) { if (act.dataset.act === "theme") toggleTheme(); else { setLang(L === "ru" ? "en" : "ru"); redraw(); } return; }
