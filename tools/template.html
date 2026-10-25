@@ -128,31 +128,40 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   padding: 4px 14px; font: inherit; cursor: pointer; }
 
 /* ── Лайтбокс ── */
-.lb { position: fixed; inset: 0; z-index: 10; background: rgba(12,11,9,.96); display: none;
-  grid-template-rows: minmax(0, 1fr) auto; color: #efe8dc; }
+.lb { position: fixed; inset: 0; z-index: 10; background: #0c0b09; display: none;
+  grid-template-rows: minmax(0, 1fr); color: #efe8dc; }
 .lb.open { display: grid; animation: fade .25s; }
 @keyframes fade { from { opacity: 0; } }
 .lb-stage { position: relative; display: grid; place-items: center; min-height: 0; overflow: hidden;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-  padding: 56px clamp(8px, 6vw, 88px) 12px; touch-action: none; user-select: none; }
+  padding: 8px clamp(8px, 5vw, 72px); touch-action: none; user-select: none; }
+.lb:fullscreen .lb-stage, .lb.bare .lb-stage { padding: 0; }
+.lb:fullscreen { background: #000; }
 .lb-stage img, .lb-stage video { max-width: 100%; max-height: 100%; min-height: 0; object-fit: contain;
   box-shadow: 0 20px 60px rgba(0,0,0,.5); transform-origin: center; will-change: transform; }
 .lb-stage img { cursor: zoom-in; -webkit-user-drag: none; }
 .lb-stage.zoomed img, .lb-stage.zoomed video { cursor: grab; box-shadow: none; }
 .lb-zoom { position: absolute; z-index: 2; top: 10px; right: 56px; display: flex; gap: 2px; }
-.lb .lb-zoom button { position: static; width: 38px; height: 38px; font: 400 26px/1 var(--sans) !important; }
-.lb-cap { padding: 12px clamp(16px, 6vw, 88px) 24px; display: flex; gap: 16px; align-items: baseline;
-  justify-content: center; text-align: center; min-height: 64px; }
+/* подпись — поверх фото на прозрачном градиенте; тап/клик по фото прячет её и все кнопки */
+.lb-cap, .lb button, .lb-count, .lb-zoom { transition: opacity .25s; }
+.lb .lb-zoom button[hidden] { display: none; }
+.lb.bare .lb-cap, .lb.bare button, .lb.bare .lb-count, .lb.bare .lb-zoom { opacity: 0 !important; pointer-events: none; }
+.lb .lb-zoom button { position: static; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; font: 400 26px/1 var(--sans) !important; }
+.lb-cap { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; pointer-events: none;
+  padding: 36px clamp(16px, 6vw, 88px) 16px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline;
+  justify-content: center; text-align: center; background: linear-gradient(transparent, rgba(0,0,0,.6));
+  text-shadow: 0 1px 3px rgba(0,0,0,.7); max-height: 45%; overflow: hidden; }
 .lb-cap b { font: italic 400 19px/1.4 var(--serif); }
-.lb-cap small { color: #8f877b; font-size: 13px; white-space: nowrap; }
+.lb-cap small { color: #c9c0b2; font-size: 13px; white-space: nowrap; }
+@media (max-width: 720px), (max-height: 500px) { .lb-cap b { font-size: 16px; } .lb-cap { padding-bottom: 10px; } }
 .lb button { position: absolute; z-index: 2; background: none; border: 0; color: #efe8dc; cursor: pointer;
-  font: 300 34px/1 var(--sans); padding: 16px; opacity: .7; transition: opacity .2s; }
+  font: 300 34px/1 var(--sans); padding: 16px; opacity: .75; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
 .lb button:hover { opacity: 1; }
 .lb-close { top: 4px; right: 8px; }
 .lb-prev, .lb-next { top: 50%; transform: translateY(-50%); font-size: 44px !important; }
 .lb-prev { left: 4px; } .lb-next { right: 4px; }
 .lb-count { position: absolute; top: 20px; left: 24px; font: 600 12px/1 var(--sans); letter-spacing: .14em;
-  color: #8f877b; }
+  color: #c9c0b2; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
 
 .lang-pill { position: absolute; z-index: 2; top: 18px; right: clamp(16px, 4vw, 48px); padding: 6px 14px;
   border: 1px solid rgba(255,255,255,.55); border-radius: 20px; background: rgba(0,0,0,.25); color: #fff;
@@ -200,7 +209,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
   <span class="lb-count" id="lb-count"></span>
   <button class="lb-close" id="lb-close" aria-label="Закрыть">×</button>
-  <div class="lb-zoom"><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
+  <div class="lb-zoom"><button id="lb-fs" aria-label="Fullscreen" hidden><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5"/></svg></button><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
   <button class="lb-prev" id="lb-prev" aria-label="Назад">‹</button>
   <button class="lb-next" id="lb-next" aria-label="Вперёд">›</button>
 </div>
@@ -478,6 +487,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   function closeLb() {
     if (!lb.classList.contains("open")) return;
     lb.classList.remove("open"); stage.innerHTML = ""; document.body.style.overflow = "";
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     const t = document.querySelector(`.tile[data-k="${cur}"]`);
     if (t) {
       const r = t.getBoundingClientRect();
@@ -551,7 +561,17 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     e.preventDefault();
     zoomAt(zs * Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), e.clientX, e.clientY);
   }, {passive: false});
+  // одиночный тап/клик по фото — спрятать/показать подпись и кнопки (ждём, не будет ли второго)
+  let uiT = null;
+  const tapUi = () => { clearTimeout(uiT); uiT = setTimeout(() => lb.classList.toggle("bare"), 300); };
+  stage.addEventListener("click", e => { if (e.target.tagName === "IMG" && !moved && lastType === "mouse") tapUi(); });
+  // настоящий полноэкранный режим (нет на iPhone — там кнопки не будет)
+  const fsBtn = document.getElementById("lb-fs");
+  fsBtn.hidden = !document.fullscreenEnabled;
+  fsBtn.onclick = () => document.fullscreenElement ? document.exitFullscreen() : lb.requestFullscreen().catch(() => {});
+  addEventListener("keydown", e => { if (lb.classList.contains("open") && (e.key === "f" || e.key === "а")) fsBtn.click(); });
   stage.addEventListener("dblclick", e => {
+    clearTimeout(uiT);
     if (e.target.tagName === "IMG" && lastType === "mouse") zoomAt(zs > 1 ? 1 : 2.5, e.clientX, e.clientY);
   });
   const pts = new Map(); let g0 = null, s0 = null, tap = 0, moved = false, lastType = "mouse";
@@ -590,7 +610,8 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
       if (s0.s === 1 && zs === 1 && Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); mark(); }   // свайп — только без увеличения
       else if (!moved && e.target.tagName === "IMG") {                                    // двойной тап
         const now = Date.now();
-        if (now - tap < 300) { zoomAt(zs > 1 ? 1 : 2.5, e.clientX, e.clientY); tap = 0; } else tap = now;
+        if (now - tap < 300) { clearTimeout(uiT); zoomAt(zs > 1 ? 1 : 2.5, e.clientX, e.clientY); tap = 0; }
+        else { tap = now; tapUi(); }
       }
     }
     if (pts.size === 0) s0 = null;
