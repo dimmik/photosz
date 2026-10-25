@@ -1,0 +1,16 @@
+# Репозиторий = корень проекта. Белый список: всё остальное (оригиналы фото, work/
+# с ключами и координатами, незашифрованные album/, token.txt) в git не попадает.
+/*
+!/.gitignore
+!/.nojekyll
+!/index.html
+!/robots.txt
+!/README.md
+!/plan.md
+!/tools/
+!/.claude/
+/.claude/*
+!/.claude/skills/
+__pycache__/
+# опубликованные альбомы (дописывает album.py publish):
+!/sf-2026-10/
