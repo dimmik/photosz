@@ -134,9 +134,13 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 @keyframes fade { from { opacity: 0; } }
 .lb-stage { position: relative; display: grid; place-items: center; min-height: 0; overflow: hidden;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-  padding: 56px clamp(8px, 6vw, 88px) 12px; touch-action: pan-y; }
+  padding: 56px clamp(8px, 6vw, 88px) 12px; touch-action: none; user-select: none; }
 .lb-stage img, .lb-stage video { max-width: 100%; max-height: 100%; min-height: 0; object-fit: contain;
-  box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  box-shadow: 0 20px 60px rgba(0,0,0,.5); transform-origin: center; will-change: transform; }
+.lb-stage img { cursor: zoom-in; -webkit-user-drag: none; }
+.lb-stage.zoomed img, .lb-stage.zoomed video { cursor: grab; box-shadow: none; }
+.lb-zoom { position: absolute; z-index: 2; top: 10px; right: 56px; display: flex; gap: 2px; }
+.lb .lb-zoom button { position: static; width: 38px; height: 38px; font: 400 26px/1 var(--sans) !important; }
 .lb-cap { padding: 12px clamp(16px, 6vw, 88px) 24px; display: flex; gap: 16px; align-items: baseline;
   justify-content: center; text-align: center; min-height: 64px; }
 .lb-cap b { font: italic 400 19px/1.4 var(--serif); }
@@ -196,6 +200,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
   <span class="lb-count" id="lb-count"></span>
   <button class="lb-close" id="lb-close" aria-label="Закрыть">×</button>
+  <div class="lb-zoom"><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
   <button class="lb-prev" id="lb-prev" aria-label="Назад">‹</button>
   <button class="lb-next" id="lb-next" aria-label="Вперёд">›</button>
 </div>
@@ -447,12 +452,14 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     cur = (k + flat.length) % flat.length;
     const it = flat[cur], my = cur;
     stage.innerHTML = `<div class="lb-wait">${T.loading}</div>`;
+    zoom(1);
     const isV = it.type === "video";
     Promise.all([url(it.id + (isV ? ".mp4" : ".jpg")), isV ? url(it.id + "_p.jpg") : null]).then(([u, p]) => {
       if (my !== cur || !lb.classList.contains("open")) return;
       stage.innerHTML = isV
         ? `<video src="${u}" poster="${p}" controls autoplay playsinline></video>`
-        : `<img src="${u}" alt="${esc(tx(it, "caption"))}">`;
+        : `<img src="${u}" alt="${esc(tx(it, "caption"))}" draggable="false">`;
+      zoom(1);
     });
     document.getElementById("lb-cap").textContent = tx(it, "caption") + (it.note ? ". " + tx(it, "note") : "");
     document.getElementById("lb-sub").textContent = `${tx(it.chapter, "day")}, ${it.time}`;
@@ -475,20 +482,93 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   document.getElementById("lb-close").onclick = close;
   document.getElementById("lb-prev").onclick = () => show(cur - 1);
   document.getElementById("lb-next").onclick = () => show(cur + 1);
-  stage.addEventListener("click", e => { if (e.target === stage) close(); });
+  stage.addEventListener("click", e => { if (e.target === stage && !moved) close(); });
   addEventListener("keydown", e => {
     if (!lb.classList.contains("open")) return;
     if (e.key === "Escape") close();
     else if (e.key === "ArrowRight") show(cur + 1);
     else if (e.key === "ArrowLeft") show(cur - 1);
+    else if (e.key === "+" || e.key === "=") zoomAt(zs * 1.5);
+    else if (e.key === "-") zoomAt(zs / 1.5);
+    else if (e.key === "0") zoom(1);
   });
-  let x0 = null;
-  stage.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, {passive: true});
-  stage.addEventListener("touchend", e => {
-    if (x0 === null) return;
-    const dx = e.changedTouches[0].clientX - x0; x0 = null;
-    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+
+  // ── зум в полноэкранном режиме: колесо, щипок, двойной клик/тап, кнопки ± и клавиши; при увеличении — перетаскивание ──
+  let zs = 1, zx = 0, zy = 0;
+  const media = () => stage.querySelector("img, video");
+  function zoom(s, x = 0, y = 0) {
+    const m = media();
+    zs = Math.min(8, Math.max(1, s));
+    if (zs === 1) { x = y = 0; }
+    if (m) {                                          // не даём картинке уехать за край
+      const bx = m.offsetWidth * (zs - 1) / 2, by = m.offsetHeight * (zs - 1) / 2;
+      zx = Math.max(-bx, Math.min(bx, x)); zy = Math.max(-by, Math.min(by, y));
+      m.style.transform = zs === 1 ? "" : `translate(${zx}px, ${zy}px) scale(${zs})`;
+    }
+    stage.classList.toggle("zoomed", zs > 1);
+  }
+  function zoomAt(s, px, py) {                        // точка (px, py) экрана остаётся на месте
+    const m = media(); if (!m) return;
+    const r = stage.getBoundingClientRect();         // центр без учёта transform
+    const cx = r.left + m.offsetLeft + m.offsetWidth / 2, cy = r.top + m.offsetTop + m.offsetHeight / 2;
+    if (px === undefined) { px = cx; py = cy; }         // кнопки и клавиши — вокруг центра экрана
+    const k = Math.min(8, Math.max(1, s)) / zs;
+    zoom(zs * k, (px - cx) - k * (px - cx - zx), (py - cy) - k * (py - cy - zy));
+  }
+  document.getElementById("lb-in").onclick = () => zoomAt(zs * 1.5);
+  document.getElementById("lb-out").onclick = () => zoomAt(zs / 1.5);
+  stage.addEventListener("wheel", e => {
+    if (!media()) return;
+    e.preventDefault();
+    zoomAt(zs * Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), e.clientX, e.clientY);
+  }, {passive: false});
+  stage.addEventListener("dblclick", e => {
+    if (e.target.tagName === "IMG" && lastType === "mouse") zoomAt(zs > 1 ? 1 : 2.5, e.clientX, e.clientY);
   });
+  const pts = new Map(); let g0 = null, s0 = null, tap = 0, moved = false, lastType = "mouse";
+  const gesture = () => {
+    const [a, b] = [...pts.values()];
+    return b ? {d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}
+             : {d: 0, x: a.x, y: a.y};
+  };
+  stage.addEventListener("pointerdown", e => {
+    if (e.target.closest("button")) return;
+    // у видео нижняя полоса — элементы управления, их не перехватываем
+    if (e.target.tagName === "VIDEO" && e.offsetY > e.target.clientHeight - 56 && pts.size === 0) return;
+    lastType = e.pointerType;
+    pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    g0 = {...gesture(), s: zs, zx, zy};
+    if (pts.size === 1) { s0 = {x: e.clientX, y: e.clientY, s: zs}; moved = false; } else s0 = null;
+  });
+  stage.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId) || !g0) return;
+    pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    const g = gesture();
+    if (s0 && Math.hypot(e.clientX - s0.x, e.clientY - s0.y) > 10) moved = true;
+    if (pts.size === 2 && g0.d) {                     // щипок
+      zs = g0.s; zx = g0.zx; zy = g0.zy;
+      zoomAt(g0.s * g.d / g0.d, g0.x, g0.y);
+      zoom(zs, zx + g.x - g0.x, zy + g.y - g0.y);
+    } else if (pts.size === 1 && zs > 1) {            // перетаскивание увеличенного
+      zoom(zs, g0.zx + g.x - g0.x, g0.zy + g.y - g0.y);
+    }
+  });
+  const up = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size === 0 && s0 && e.pointerType !== "mouse") {
+      const dx = e.clientX - s0.x;
+      if (s0.s === 1 && zs === 1 && Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));   // свайп — только без увеличения
+      else if (!moved && e.target.tagName === "IMG") {                                    // двойной тап
+        const now = Date.now();
+        if (now - tap < 300) { zoomAt(zs > 1 ? 1 : 2.5, e.clientX, e.clientY); tap = 0; } else tap = now;
+      }
+    }
+    if (pts.size === 0) s0 = null;
+    g0 = pts.size ? {...gesture(), s: zs, zx, zy} : null;
+  };
+  stage.addEventListener("pointerup", up);
+  stage.addEventListener("pointercancel", up);
   }
 })();
 </script>
