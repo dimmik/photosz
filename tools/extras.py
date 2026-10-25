@@ -74,13 +74,11 @@ def cmd_signs(root):
                     objs.append(f); hashes.append(h)
                 if len(objs) == OBJECTS:
                     break
-            if not objs:
-                continue
             n = f"{len(smap) + 1:02d}"
             im = ImageOps.exif_transpose(Image.open(os.path.join(root, "src", meta[best]["file"]))).convert("RGB")
             im.thumbnail((1400, 1400), Image.LANCZOS)
             cells = [sel.cell(os.path.join(work, "thumbs", f + ".jpg"), 300, str(i)) for i, f in enumerate(objs, 1)]
-            right = sel.grid(cells, 2, 300)
+            right = sel.grid(cells, 2, 300) if cells else Image.new("RGB", (0, 0))   # снимков рядом нет — табличка одна
             sheet = Image.new("RGB", (im.width + 20 + right.width, max(im.height, right.height)), (20, 20, 20))
             sheet.paste(im, (0, 0))
             sheet.paste(right, (im.width + 20, 0))
