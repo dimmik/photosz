@@ -472,7 +472,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     Promise.all([url(it.id + (isV ? ".mp4" : ".jpg")), isV ? url(it.id + "_p.jpg") : null]).then(([u, p]) => {
       if (my !== cur || !lb.classList.contains("open")) return;
       stage.innerHTML = isV
-        ? `<video src="${u}" poster="${p}" controls autoplay playsinline></video>`
+        ? `<video src="${u}" poster="${p}" controls autoplay loop playsinline></video>`
         : `<img src="${u}" alt="${esc(tx(it, "caption"))}" draggable="false">`;
       zoom(1);
     });
