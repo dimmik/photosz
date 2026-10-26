@@ -560,13 +560,15 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 
   // ── зум в полноэкранном режиме: колесо, щипок, двойной клик/тап, кнопки ± и клавиши; при увеличении — перетаскивание ──
   let zs = 1, zx = 0, zy = 0;
+  const ZMIN = 0.4, ZMAX = 8;                       // меньше 1 — фото мельче экрана
   const media = () => stage.querySelector("img, video");
   function zoom(s, x = 0, y = 0) {
     const m = media();
-    zs = Math.min(8, Math.max(1, s));
-    if (zs === 1) { x = y = 0; }
+    zs = Math.min(ZMAX, Math.max(ZMIN, s));
+    if (Math.abs(zs - 1) < 0.04) zs = 1;            // прилипает к «целиком»
+    if (zs <= 1) { x = y = 0; }                       // мельче экрана — всегда по центру
     if (m) {                                          // не даём картинке уехать за край
-      const bx = m.offsetWidth * (zs - 1) / 2, by = m.offsetHeight * (zs - 1) / 2;
+      const bx = Math.max(0, m.offsetWidth * (zs - 1) / 2), by = Math.max(0, m.offsetHeight * (zs - 1) / 2);
       zx = Math.max(-bx, Math.min(bx, x)); zy = Math.max(-by, Math.min(by, y));
       m.style.transform = zs === 1 ? "" : `translate(${zx}px, ${zy}px) scale(${zs})`;
     }
@@ -577,7 +579,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     const r = stage.getBoundingClientRect();         // центр без учёта transform
     const cx = r.left + m.offsetLeft + m.offsetWidth / 2, cy = r.top + m.offsetTop + m.offsetHeight / 2;
     if (px === undefined) { px = cx; py = cy; }         // кнопки и клавиши — вокруг центра экрана
-    const k = Math.min(8, Math.max(1, s)) / zs;
+    const k = Math.min(ZMAX, Math.max(ZMIN, s)) / zs;
     zoom(zs * k, (px - cx) - k * (px - cx - zx), (py - cy) - k * (py - cy - zy));
   }
   document.getElementById("lb-in").onclick = () => zoomAt(zs * 1.5);
@@ -598,7 +600,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   addEventListener("keydown", e => { if (lb.classList.contains("open") && (e.key === "f" || e.key === "а")) fsBtn.click(); });
   stage.addEventListener("dblclick", e => {
     clearTimeout(uiT);
-    if (e.target.tagName === "IMG" && lastType === "mouse") zoomAt(zs > 1 ? 1 : 2.5, e.clientX, e.clientY);
+    if (e.target.tagName === "IMG" && lastType === "mouse") zoomAt(zs !== 1 ? 1 : 2.5, e.clientX, e.clientY);
   });
   const pts = new Map(); let g0 = null, s0 = null, tap = 0, moved = false, lastType = "mouse";
   const gesture = () => {
@@ -633,10 +635,10 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     pts.delete(e.pointerId);
     if (pts.size === 0 && s0 && e.pointerType !== "mouse") {
       const dx = e.clientX - s0.x;
-      if (s0.s === 1 && zs === 1 && Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); mark(); }   // свайп — только без увеличения
+      if (s0.s <= 1 && zs <= 1 && Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); mark(); }   // свайп — только без увеличения
       else if (!moved && e.target.tagName === "IMG") {                                    // двойной тап
         const now = Date.now();
-        if (now - tap < 300) { clearTimeout(uiT); zoomAt(zs > 1 ? 1 : 2.5, e.clientX, e.clientY); tap = 0; }
+        if (now - tap < 300) { clearTimeout(uiT); zoomAt(zs !== 1 ? 1 : 2.5, e.clientX, e.clientY); tap = 0; }
         else { tap = now; tapUi(); }
       }
     }
