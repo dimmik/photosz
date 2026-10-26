@@ -560,7 +560,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 
   // ── зум в полноэкранном режиме: колесо, щипок, двойной клик/тап, кнопки ± и клавиши; при увеличении — перетаскивание ──
   let zs = 1, zx = 0, zy = 0;
-  const ZMIN = 0.1, ZMAX = 8;                       // меньше 1 — фото мельче экрана
+  const ZMIN = 0.1, ZMAX = 100;                      // меньше 1 — фото мельче экрана
   const media = () => stage.querySelector("img, video");
   function zoom(s, x = 0, y = 0) {
     const m = media();
