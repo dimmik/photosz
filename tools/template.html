@@ -141,6 +141,12 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   box-shadow: 0 20px 60px rgba(0,0,0,.5); transform-origin: center; will-change: transform; }
 .lb-stage img { cursor: zoom-in; -webkit-user-drag: none; }
 .lb-stage.zoomed img, .lb-stage.zoomed video { cursor: grab; box-shadow: none; }
+.lb-mini { position: absolute; z-index: 2; left: 16px; top: 44px; pointer-events: none;
+  border: 1px solid rgba(239,232,220,.6); box-shadow: 0 4px 16px rgba(0,0,0,.6); background: #000; }
+.lb-mini[hidden] { display: none; }
+.lb-mini img { width: 100%; height: 100%; object-fit: fill; opacity: .75; }
+.lb-mini i { position: absolute; min-width: 3px; min-height: 3px; border: 2px solid #ffb547;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.6); box-sizing: border-box; transform: translate(-1px, -1px); }
 .lb-zoom { position: absolute; z-index: 2; top: 10px; right: 56px; display: flex; gap: 2px; }
 /* подпись — поверх фото на прозрачном градиенте; тап/клик по фото прячет её и все кнопки */
 .lb-cap, .lb button, .lb-count, .lb-zoom { transition: opacity .25s; }
@@ -212,6 +218,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   <div class="lb-stage" id="lb-stage"></div>
   <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
   <span class="lb-count" id="lb-count"></span>
+  <div class="lb-mini" id="lb-mini" hidden><img alt=""><i></i></div>
   <button class="lb-close" id="lb-close" aria-label="Закрыть">×</button>
   <div class="lb-zoom"><button id="lb-link" aria-label="Link"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1"/></svg></button><button id="lb-fs" aria-label="Fullscreen" hidden><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5"/></svg></button><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
   <button class="lb-prev" id="lb-prev" aria-label="Назад">‹</button>
@@ -560,7 +567,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 
   // ── зум в полноэкранном режиме: колесо, щипок, двойной клик/тап, кнопки ± и клавиши; при увеличении — перетаскивание ──
   let zs = 1, zx = 0, zy = 0;
-  const ZMIN = 0.1, ZMAX = 100;                      // меньше 1 — фото мельче экрана
+  const ZMIN = 0.1, ZMAX = 500, MINI = 10;          // меньше 1 — фото мельче экрана; с ×10 — миниатюра
   const media = () => stage.querySelector("img, video");
   function zoom(s, x = 0, y = 0) {
     const m = media();
@@ -573,6 +580,23 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
       m.style.transform = zs === 1 ? "" : `translate(${zx}px, ${zy}px) scale(${zs})`;
     }
     stage.classList.toggle("zoomed", zs > 1);
+    mini(m);
+  }
+  // миниатюра с рамкой «где мы сейчас» — при сильном увеличении
+  const mm = document.getElementById("lb-mini"), mmImg = mm.querySelector("img"), mmBox = mm.querySelector("i");
+  function mini(m) {
+    if (!m || zs < MINI) { mm.hidden = true; return; }
+    const src = m.tagName === "VIDEO" ? m.poster : m.src;
+    if (mmImg.getAttribute("src") !== src) mmImg.src = src;
+    const W = m.offsetWidth, H = m.offsetHeight, a = W / H, S = 140;
+    mm.style.width = (a >= 1 ? S : S * a) + "px"; mm.style.height = (a >= 1 ? S / a : S) + "px";
+    const cx = m.offsetLeft + W / 2, cy = m.offsetTop + H / 2;
+    const f = (v, c, z, L) => Math.max(0, Math.min(1, (v - c - z) / zs / L + 0.5));   // экран → доля фото
+    const x0 = f(0, cx, zx, W), x1 = f(stage.clientWidth, cx, zx, W);
+    const y0 = f(0, cy, zy, H), y1 = f(stage.clientHeight, cy, zy, H);
+    Object.assign(mmBox.style, {left: x0 * 100 + "%", top: y0 * 100 + "%",
+      width: (x1 - x0) * 100 + "%", height: (y1 - y0) * 100 + "%"});
+    mm.hidden = false;
   }
   function zoomAt(s, px, py) {                        // точка (px, py) экрана остаётся на месте
     const m = media(); if (!m) return;
