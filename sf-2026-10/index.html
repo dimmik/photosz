@@ -126,6 +126,14 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   flex-wrap: wrap; color: var(--ink-3); font-size: 13px; }
 .theme-btn { background: none; border: 1px solid var(--rule); color: var(--ink-2); border-radius: 20px;
   padding: 4px 14px; font: inherit; cursor: pointer; }
+/* кнопка «к началу» — появляется, когда альбом пролистан вниз */
+.to-top { position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--rule); background: var(--paper);
+  color: var(--ink-2); display: grid; place-items: center; padding: 0; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,.12); opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .3s, transform .3s; }
+.to-top.on { opacity: .7; transform: none; pointer-events: auto; }
+.to-top:hover, .to-top:focus-visible { opacity: 1; }
 
 /* ── Лайтбокс ── */
 .lb { position: fixed; inset: 0; z-index: 10; background: #0c0b09; display: none;
@@ -214,6 +222,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 </head>
 <body>
 <div id="app"></div>
+<button class="to-top" id="to-top" aria-label="↑"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14V4M4.5 8.5 9 4l4.5 4.5"/></svg></button>
 <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Просмотр">
   <div class="lb-stage" id="lb-stage"></div>
   <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
@@ -248,11 +257,11 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   const I18N = {
     ru: {album: "Фотоальбом", chapters: n => n + " " + (n % 10 === 1 && n % 100 !== 11 ? "глава" :
           n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "главы" : "глав"),
-         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:",
+         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:", top: "К началу",
          lockTitle: "Закрытый альбом", lockText: "Введите ключ доступа.", open: "Открыть",
          badKey: "Ключ не подходит", failed: "Не удалось загрузить альбом", other: "EN", lang: "ru"},
     en: {album: "Photo album", chapters: n => n + (n === 1 ? " chapter" : " chapters"),
-         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", copied: "Link to this photo copied", copyFail: "Copy the link:",
+         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", copied: "Link to this photo copied", copyFail: "Copy the link:", top: "Back to top",
          lockTitle: "Private album", lockText: "Enter the access key.", open: "Open",
          badKey: "Wrong key", failed: "Could not load the album", other: "RU", lang: "en"},
   };
@@ -330,6 +339,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   function draw() {
   flat.length = 0;
   document.title = tx(A, "title");
+  const tt = document.getElementById("to-top"); tt.title = T.top; tt.setAttribute("aria-label", T.top);
   let h = `<header class="cover">
     <button class="lang-pill" data-act="lang">${T.other}</button>
     <img data-name="${A.cover}.jpg" alt="">
@@ -437,6 +447,12 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   }
   layout();
   let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(layout, 120); });
+
+  // «к началу»: видна, когда пролистано больше двух экранов
+  const top = document.getElementById("to-top");
+  const topVis = () => top.classList.toggle("on", scrollY > 2 * innerHeight);
+  addEventListener("scroll", topVis, {passive: true}); topVis();
+  top.onclick = () => scrollTo({top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
 
   // ── ленивая загрузка: картинка получает адрес, когда плитка подходит к экрану ──
   function load(img) {
