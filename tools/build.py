@@ -117,6 +117,10 @@ def main():
             if any(it["id"] == fid for it in items):             # уже среди основных — просто помечаем
                 items = [it for it in items if it["id"] != fid]
             items.append({"id": fid, "type": "photo", "caption": ph.get("caption", ""), **en(ph), "fun": True})
+        for ph in p.get("way", []):                         # «в пути»: как добрались — сверх лимита, без значка
+            fid = ph.get("id") or s["way_candidates"][ph["n"] - 1]
+            if not any(it["id"] == fid for it in items):
+                items.append({"id": fid, "type": "photo", "caption": ph.get("caption", ""), **en(ph)})
         for v in p.get("videos", []):
             fid = v.get("id") or s.get("cand_videos", s["videos"])[v["v"] - 1]
             items.append({"id": fid, "type": "video", "caption": v.get("caption", ""), **en(v), "fun": bool(v.get("fun"))})

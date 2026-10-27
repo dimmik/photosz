@@ -4,6 +4,8 @@
   python3 tools/extras.py "<альбом>" signs    табличка крупно + снимки рядом по времени → work/extras/sign_NN.jpg
   python3 tools/extras.py "<альбом>" faces    фото альбома листами для поиска лиц → work/extras/faces_N.jpg
   python3 tools/extras.py "<альбом>" people   лист для пользователя: только фото с лицами → work/extras/people.jpg
+  python3 tools/extras.py "<альбом>" suggest  «что ещё могло бы попасть»: дыры по времени, «дорога», моменты
+                                              → work/extras/suggest.jpg
 
 Карты меток (что за файл под какой меткой) — work/extras/*_map.json.
 """
@@ -23,6 +25,9 @@ SIGN_RE = re.compile(r"plaque|info(rmation)? board|panel|placard|exhibit|histori
 NEAR_MIN = 15          # снимки объекта ищем в пределах ±15 минут от таблички
 GROUP_S = 120          # таблички ближе 2 минут друг к другу — одна табличка (несколько дублей)
 OBJECTS = 6            # кандидатов в «сам объект» на лист
+HOLE_MIN = 12          # дыра: ≥ 12 минут внутри главы без единого кадра в альбоме…
+HOLE_N = 4             # …и при этом снято ≥ 4 кадров
+SUGGEST = 6            # предложений на главу
 
 
 def is_sign(s):
@@ -130,12 +135,65 @@ def cmd_people(root):
         print(f"  {l:4} {fmap[l]}" + (f"  уже подписано: {named[fmap[l]].get('ru')}" if fmap[l] in named else ""))
 
 
+def cmd_suggest(root):
+    work = os.path.join(root, "work")
+    meta = {r["id"]: r for r in json.load(open(os.path.join(work, "meta.json")))}
+    scores = sel.load_scores(work)
+    album = json.load(open(os.path.join(root, "album", "album.json")))
+    t = lambda fid: datetime.fromisoformat(meta[fid]["time"])
+    g = lambda f, k: scores.get(f, {}).get(k, 0)
+    rank = lambda f: (sel.story(scores.get(f, {})) >= sel.WAY or g(f, "fun") >= sel.FUN, g(f, "score"), meta[f]["sharp"])
+    cells, smap, report = [], {}, []
+    # главы альбома идут в том же порядке, что оставленные разделы
+    for ch, ((key, s), c) in enumerate(zip(kept_sections(work), album["chapters"]), 1):
+        chosen = [it["id"] for it in c["items"]]
+        hs = [imagehash.hex_to_hash(meta[f]["phash"]) for f in chosen if "phash" in meta[f]]
+        pool = [f for f in s["photos"] if f in meta and f not in chosen
+                and all(imagehash.hex_to_hash(meta[f]["phash"]) - h > 8 for h in hs)]
+        # дыры: промежутки между взятыми кадрами (и краями главы), где много снято и ничего не взято
+        marks = sorted([datetime.fromisoformat(s["start"]), datetime.fromisoformat(s["end"])] + [t(f) for f in chosen])
+        picks, why = [], {}
+        for a, b in zip(marks, marks[1:]):
+            inside = [f for f in pool if a < t(f) < b]
+            if (b - a).total_seconds() >= HOLE_MIN * 60 and len(inside) >= HOLE_N:
+                report.append(f"гл. {ch} «{c['title']}»: {a:%H:%M}–{b:%H:%M} в альбоме ничего, снято {len(inside)}")
+                best = sorted(inside, key=rank, reverse=True)[:2]
+                picks += best
+                why.update({f: "дыра" for f in best})
+        way = [f for f in pool if sel.story(scores.get(f, {})) >= sel.WAY]
+        fun = [f for f in pool if g(f, "fun") >= sel.FUN]
+        for f, w in [(f, "в пути") for f in sorted(way, key=rank, reverse=True)] + \
+                    [(f, "момент") for f in sorted(fun, key=rank, reverse=True)]:
+            if f not in picks:
+                picks.append(f); why[f] = w
+        out = []
+        for f in picks:                                  # из одного места (±60 с) — один кадр
+            if len(out) < SUGGEST and all(abs((t(f) - t(x)).total_seconds()) >= 60 for x in out):
+                out.append(f)
+        for i, f in enumerate(sorted(out, key=t), 1):
+            lab = f"{ch}.{i}"
+            smap[lab] = {"id": f, "section": key, "chapter": c["title"], "why": why[f], "what": scores.get(f, {}).get("what", "")}
+            cells.append(sel.cell(os.path.join(work, "thumbs", f + ".jpg"), 300, lab))
+        cells += [Image.new("RGB", (300, 300), (20, 20, 20))] * (-len(cells) % SUGGEST)   # глава — с новой строки
+    out_dir = os.path.join(work, "extras")
+    os.makedirs(out_dir, exist_ok=True)
+    json.dump(smap, open(os.path.join(out_dir, "suggest_map.json"), "w"), ensure_ascii=False, indent=1)
+    print("\n".join(report) or "дыр по времени нет")
+    if not smap:
+        print("предложений нет")
+        return
+    sel.grid(cells, SUGGEST, 300).save(os.path.join(out_dir, "suggest.jpg"), quality=82)
+    print(f"предложений: {len(smap)} → {os.path.join(out_dir, 'suggest.jpg')}")
+    for lab, m in smap.items():
+        print(f"  {lab:5} {m['id']}  [{m['why']}] {m['what']}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("root")
-    ap.add_argument("cmd", choices=["signs", "faces", "people"])
+    ap.add_argument("cmd", choices=["signs", "faces", "people", "suggest"])
     a = ap.parse_args()
-    {"signs": cmd_signs, "faces": cmd_faces, "people": cmd_people}[a.cmd](a.root)
+    {"signs": cmd_signs, "faces": cmd_faces, "people": cmd_people, "suggest": cmd_suggest}[a.cmd](a.root)
 
 
 if __name__ == "__main__":

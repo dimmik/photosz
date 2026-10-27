@@ -8,7 +8,7 @@
       → work/sheets/sNN.jpg (крупные миниатюры лучших по оценке) + кандидаты в sections.json
         Проход 2 (ИИ): финальный выбор, герой, обложка, подписи → work/picks.json
 """
-import argparse, json, math, os, time, urllib.parse, urllib.request
+import argparse, json, math, os, re, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta
 
 import imagehash
@@ -27,6 +27,10 @@ FUN_MAX = 3                       # кандидатов-моментов на �
 BURST_GAP = 30                    # серия: подряд идущие фото с паузами ≤ 30 с…
 BURST_MIN = 4                     # …не короче 4 кадров (смешное часто видно только в последовательности)
 BURST_FRAMES = 5                  # кадров серии на ленте для ИИ
+WAY = 6                           # «дорога»: как добрались и что по пути (story ≥ WAY) — сверх лимита
+WAY_MAX = 3                       # кандидатов «дорога» на раздел для прохода 2
+# старые альбомы без оценки "story": узнаём «дорогу» по описанию
+WAY_RE = re.compile(r"stair|steps|trail|tunnel|cave|descen|climb|ferry|cable car|elevator", re.I)
 
 
 def km(a, b):
@@ -303,6 +307,13 @@ def load_scores(work):
     return by_id
 
 
+def story(s):
+    """Оценка «дорога» прохода 1; у старых альбомов — по описанию."""
+    if "story" in s:
+        return s["story"]
+    return WAY if WAY_RE.search(s.get("what", "")) else 0
+
+
 def cmd_shortlist(root, k):
     work, items = load(root)
     meta = {r["id"]: r for r in items}
@@ -344,6 +355,17 @@ def cmd_shortlist(root, k):
             funs.append(f)
         funs.sort(key=lambda f: meta[f]["time"])
         s["fun_candidates"] = funs
+        # дорога: как добрались и что по пути; из одного места (±60 с) — один кадр
+        way = []
+        for f in sorted(s["photos"], key=lambda f: (story(scores.get(f, {})), sc(f)), reverse=True):
+            if story(scores.get(f, {})) < WAY or len(way) == WAY_MAX:
+                break
+            t = datetime.fromisoformat(meta[f]["time"])
+            if f in cand or f in funs or any(abs((t - datetime.fromisoformat(meta[g]["time"])).total_seconds()) < 60 for g in way):
+                continue
+            way.append(f)
+        way.sort(key=lambda f: meta[f]["time"])
+        s["way_candidates"] = way
         vids = sorted(s["videos"], key=lambda v: max(sc(v), fun(v)), reverse=True)[:3]
         vids = [v for v in vids if max(sc(v), fun(v)) >= 5]
         vids.sort(key=lambda f: meta[f]["time"])
@@ -366,6 +388,8 @@ def cmd_shortlist(root, k):
                  for i, f in enumerate(cand, 1)]
         cells += [cell(os.path.join(work, "thumbs", f + ".jpg"), CELL2, f"F{i}")
                   for i, f in enumerate(funs, 1)]
+        cells += [cell(os.path.join(work, "thumbs", f + ".jpg"), CELL2, f"W{i}")
+                  for i, f in enumerate(way, 1)]
         parts = [grid(cells, 3, CELL2)] if cells else []
         if vids:
             parts.append(filmstrips([meta[v] for v in vids], [f"V{i}" for i in range(1, len(vids) + 1)],
@@ -377,7 +401,7 @@ def cmd_shortlist(root, k):
             y += p.height
         s["sheet"] = os.path.join("work", "sheets", f"s{s['n']:02d}.jpg")
         sheet.save(os.path.join(root, s["sheet"]), quality=80)
-        print(f"s{s['n']:02d}: {len(cand)} фото (лучшая оценка {s['best']}), {len(funs)} моментов, {len(vids)} видео")
+        print(f"s{s['n']:02d}: {len(cand)} фото (лучшая оценка {s['best']}), {len(funs)} моментов, {len(way)} в пути, {len(vids)} видео")
     json.dump(sections, open(os.path.join(work, "sections.json"), "w"), indent=1, ensure_ascii=False)
 
 

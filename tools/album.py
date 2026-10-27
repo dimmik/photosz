@@ -153,6 +153,8 @@ def cmd_shortlist(root):
                                             for i, f in enumerate(s["candidates"], 1)))
         if s.get("fun_candidates"):
             lines.append("  fun: " + "; ".join(f"F{i}={d(f)}" for i, f in enumerate(s["fun_candidates"], 1)))
+        if s.get("way_candidates"):
+            lines.append("  on the way: " + "; ".join(f"W{i}={d(f)}" for i, f in enumerate(s["way_candidates"], 1)))
         if s.get("cand_videos"):
             lines.append("  videos: " + "; ".join(f"V{i}={d(f)} ({meta[f]['duration']}s)"
                                                 for i, f in enumerate(s["cand_videos"], 1)))
@@ -326,7 +328,8 @@ def cmd_status(root):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people"])
+    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people",
+                                       "suggest"])
     ap.add_argument("path", nargs="?", default=".")
     ap.add_argument("--slug")
     ap.add_argument("--title")
@@ -335,7 +338,8 @@ def main():
     {"prepare": lambda: cmd_prepare(a.path), "shortlist": lambda: cmd_shortlist(a.path),
      "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug),
      "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
-     "extras": lambda: cmd_extras(a.path), "people": lambda: py("extras.py", a.path, "people")}[a.cmd]()
+     "extras": lambda: cmd_extras(a.path), "people": lambda: py("extras.py", a.path, "people"),
+     "suggest": lambda: py("extras.py", a.path, "suggest")}[a.cmd]()
 
 
 if __name__ == "__main__":
