@@ -149,7 +149,8 @@ def cmd_suggest(root):
         chosen = [it["id"] for it in c["items"]]
         hs = [imagehash.hex_to_hash(meta[f]["phash"]) for f in chosen if "phash" in meta[f]]
         pool = [f for f in s["photos"] if f in meta and f not in chosen
-                and all(imagehash.hex_to_hash(meta[f]["phash"]) - h > 8 for h in hs)]
+                and all(imagehash.hex_to_hash(meta[f]["phash"]) - h > 8 for h in hs)
+                and all(abs((t(f) - t(c)).total_seconds()) > 20 for c in chosen)]   # дубль на секунду позже — не предлагаем
         # дыры: промежутки между взятыми кадрами (и краями главы), где много снято и ничего не взято
         marks = sorted([datetime.fromisoformat(s["start"]), datetime.fromisoformat(s["end"])] + [t(f) for f in chosen])
         picks, why = [], {}
