@@ -643,6 +643,9 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     if (e.target.tagName === "IMG" && lastType === "mouse") zoomAt(zs !== 1 ? 1 : 2.5, e.clientX, e.clientY);
   });
   const pts = new Map(); let g0 = null, s0 = null, tap = 0, moved = false, lastType = "mouse";
+  // увеличенное фото у края можно оттянуть дальше; оттянул на треть экрана и отпустил — соседнее фото
+  let ov = 0;
+  const ovLim = () => stage.clientWidth / 3;
   const gesture = () => {
     const [a, b] = [...pts.values()];
     return b ? {d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}
@@ -656,6 +659,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
     g0 = {...gesture(), s: zs, zx, zy};
     if (pts.size === 1) { s0 = {x: e.clientX, y: e.clientY, s: zs}; moved = false; } else s0 = null;
+    ov = 0;
   });
   stage.addEventListener("pointermove", e => {
     if (!pts.has(e.pointerId) || !g0) return;
@@ -666,13 +670,34 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
       zs = g0.s; zx = g0.zx; zy = g0.zy;
       zoomAt(g0.s * g.d / g0.d, g0.x, g0.y);
       zoom(zs, zx + g.x - g0.x, zy + g.y - g0.y);
+      ov = 0;
     } else if (pts.size === 1 && zs > 1) {            // перетаскивание увеличенного
-      zoom(zs, g0.zx + g.x - g0.x, g0.zy + g.y - g0.y);
+      const want = g0.zx + g.x - g0.x;
+      zoom(zs, want, g0.zy + g.y - g0.y);
+      ov = want - zx;                                 // насколько тянут дальше края
+      const m = media();
+      if (m && ov) {
+        const lim = ovLim(), a = Math.abs(ov);
+        const shown = Math.sign(ov) * (a <= lim ? a : lim + (a - lim) * 0.3);   // за порогом — туже
+        m.style.transform = `translate(${zx + shown}px, ${zy}px) scale(${zs})`;
+        m.style.opacity = a >= lim ? 0.55 : 1;        // «отпусти — перейдём»
+      } else if (m) m.style.opacity = "";
     }
   });
   const up = e => {
     if (!pts.has(e.pointerId)) return;
     pts.delete(e.pointerId);
+    if (pts.size === 0 && ov) {                       // отпустили оттянутое за край
+      const go = Math.abs(ov) >= ovLim(), dir = ov > 0 ? -1 : 1, m = media();
+      ov = 0; s0 = null; g0 = null;
+      if (go) { show(cur + dir); mark(); return; }
+      if (m) {
+        m.style.transition = "transform .2s, opacity .2s"; m.style.opacity = "";
+        zoom(zs, zx, zy);
+        setTimeout(() => { m.style.transition = ""; }, 220);
+      }
+      return;
+    }
     if (pts.size === 0 && s0 && e.pointerType !== "mouse") {
       const dx = e.clientX - s0.x;
       if (s0.s <= 1 && zs <= 1 && Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); mark(); }   // свайп — только без увеличения
