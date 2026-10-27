@@ -570,7 +570,6 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   document.getElementById("lb-close").onclick = close;
   document.getElementById("lb-prev").onclick = () => { show(cur - 1); mark(); };
   document.getElementById("lb-next").onclick = () => { show(cur + 1); mark(); };
-  stage.addEventListener("click", e => { if (e.target === stage && !moved) close(); });
   addEventListener("keydown", e => {
     if (!lb.classList.contains("open")) return;
     if (e.key === "Escape") close();
@@ -629,10 +628,11 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     e.preventDefault();
     zoomAt(zs * Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), e.clientX, e.clientY);
   }, {passive: false});
-  // одиночный тап/клик по фото — спрятать/показать подпись и кнопки (ждём, не будет ли второго)
+  // одиночный тап/клик по фото или фону — спрятать/показать подпись и кнопки (ждём, не будет ли второго);
+  // закрывают только × , Esc и «Назад»
   let uiT = null;
   const tapUi = () => { clearTimeout(uiT); uiT = setTimeout(() => lb.classList.toggle("bare"), 300); };
-  stage.addEventListener("click", e => { if (e.target.tagName === "IMG" && !moved && lastType === "mouse") tapUi(); });
+  stage.addEventListener("click", e => { if ((e.target.tagName === "IMG" || e.target === stage) && !moved && lastType === "mouse") tapUi(); });
   // настоящий полноэкранный режим (нет на iPhone — там кнопки не будет)
   const fsBtn = document.getElementById("lb-fs");
   fsBtn.hidden = !document.fullscreenEnabled;
@@ -676,6 +676,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     if (pts.size === 0 && s0 && e.pointerType !== "mouse") {
       const dx = e.clientX - s0.x;
       if (s0.s <= 1 && zs <= 1 && Math.abs(dx) > 50) { show(cur + (dx < 0 ? 1 : -1)); mark(); }   // свайп — только без увеличения
+      else if (!moved && e.target === stage) tapUi();                                    // тап по фону
       else if (!moved && e.target.tagName === "IMG") {                                    // двойной тап
         const now = Date.now();
         if (now - tap < 300) { clearTimeout(uiT); zoomAt(zs !== 1 ? 1 : 2.5, e.clientX, e.clientY); tap = 0; }
