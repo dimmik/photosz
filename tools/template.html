@@ -150,6 +150,12 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 /* листание: соседнее фото поверх (предыдущее) или под текущим (следующее, из глубины) */
 .lb-peek { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
 .lb-peek.under { z-index: -1; opacity: 0; }
+/* переход через край альбома: черта и надпись у края, который при листании показывается первым */
+.lb-wrap { position: absolute; top: 0; bottom: 0; right: 0; opacity: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: center;
+  gap: 4px; padding: 0 68px 0 56px; color: #efe8dc; font: 400 13px/1.3 var(--sans); text-align: right;
+  text-shadow: 0 1px 6px rgba(0,0,0,.8); border-right: 3px solid #ffb547;
+  background: linear-gradient(270deg, rgba(12,11,9,.88), rgba(12,11,9,0)); }
+.lb-wrap b { font: 600 15px/1.2 var(--sans); letter-spacing: .02em; }
 .lb-peek.over { background: #0c0b09; box-shadow: 0 0 40px rgba(0,0,0,.6); }
 .lb:fullscreen .lb-peek.over { background: #000; }
 .lb-stage img { cursor: zoom-in; -webkit-user-drag: none; }
@@ -263,10 +269,14 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     ru: {album: "Фотоальбом", chapters: n => n + " " + (n % 10 === 1 && n % 100 !== 11 ? "глава" :
           n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "главы" : "глав"),
          scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:", top: "К началу",
+         wrapEnd: "Конец альбома", wrapEndSub: "дальше — с начала", wrapStart: "Начало альбома", wrapStartSub: "дальше — с конца",
+         toStart: "Снова с начала альбома", toEnd: "Последнее фото альбома",
          lockTitle: "Закрытый альбом", lockText: "Введите ключ доступа.", open: "Открыть",
          badKey: "Ключ не подходит", failed: "Не удалось загрузить альбом", other: "EN", lang: "ru"},
     en: {album: "Photo album", chapters: n => n + (n === 1 ? " chapter" : " chapters"),
          scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", copied: "Link to this photo copied", copyFail: "Copy the link:", top: "Back to top",
+         wrapEnd: "End of the album", wrapEndSub: "next — back to the start", wrapStart: "Start of the album", wrapStartSub: "next — the last photo",
+         toStart: "Back to the start of the album", toEnd: "Last photo of the album",
          lockTitle: "Private album", lockText: "Enter the access key.", open: "Open",
          badKey: "Wrong key", failed: "Could not load the album", other: "RU", lang: "en"},
   };
@@ -492,6 +502,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   const lb = document.getElementById("lb"), stage = document.getElementById("lb-stage");
   let cur = -1;
   function show(k, held) {                              // held — превью от листания, убираем, когда новое готово
+    if (cur >= 0 && (k >= flat.length || k < 0)) setTimeout(() => say(k < 0 ? T.toEnd : T.toStart));
     cur = (k + flat.length) % flat.length;
     const drop = () => held && held.remove();
     if (held) setTimeout(drop, 4000);
@@ -658,7 +669,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   let sw = 0, swPrev = 0, swT = 0, swV = 0, axis = "", peek = null, busy = false;
   const TR = "transform .22s ease-out, opacity .22s ease-out";
   const base = () => zs === 1 ? "" : `translate(${zx}px, ${zy}px) scale(${zs})`;
-  function dropPeek() { if (peek) { peek.el.remove(); peek = null; } }
+  function dropPeek() { if (peek) { peek.el.remove(); if (peek.tag) peek.tag.remove(); peek = null; } }
   function peekFor(dir) {                               // dir: -1 предыдущее, 1 следующее
     if (peek && peek.dir === dir) return peek;
     dropPeek();
@@ -666,14 +677,24 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     const el = document.createElement("div"), im = document.createElement("img");
     el.className = "lb-stage lb-peek " + (dir < 0 ? "over" : "under");
     im.alt = ""; im.draggable = false; el.appendChild(im);
+    const k = cur + dir;
+    let tag = null;
+    if (k < 0 || k >= flat.length) {                    // переход через край альбома — даём понять
+      const end = k >= flat.length;
+      tag = document.createElement("div");
+      tag.className = "lb-wrap";
+      tag.innerHTML = `<b>${end ? T.wrapEnd : T.wrapStart}</b><span>${end ? T.wrapEndSub : T.wrapStartSub} ${end ? "↺" : "↻"}</span>`;
+    }
     let full = false;                                   // сначала превью, полный файл — как будет готов
     url(n.id + (n.type === "video" ? "_p.jpg" : "_t.jpg")).then(u => { if (!full) im.src = u; });
     if (n.type === "photo") url(n.id + ".jpg").then(u => { full = true; im.src = u; });
     stage.after(el);
-    return peek = {el, dir};
+    if (tag) el.after(tag);
+    return peek = {el, dir, tag};
   }
   function paint(dx) {
     const m = media(), w = stage.clientWidth, p = Math.min(1, Math.abs(dx) / w);
+    if (dx && peekFor(dx > 0 ? -1 : 1).tag) peek.tag.style.opacity = Math.min(1, p * 3);
     if (dx > 0) {
       peekFor(-1).el.style.transform = `translateX(${dx - w}px)`;
       if (m) { m.style.transform = base(); m.style.opacity = 1 - p * 0.4; }
@@ -688,6 +709,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   }
   function finish(go) {
     const dir = sw > 0 ? -1 : 1, w = stage.clientWidth, pk = peek && peek.el, m = media();
+    if (peek && peek.tag) { peek.tag.style.transition = "opacity .2s"; peek.tag.style.opacity = 0; setTimeout(t => t.remove(), 230, peek.tag); peek.tag = null; }
     sw = 0; busy = true;
     [pk, m].forEach(x => x && (x.style.transition = TR));
     if (go && pk) {
