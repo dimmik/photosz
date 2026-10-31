@@ -313,13 +313,13 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
         const key = await crypto.subtle.deriveKey(
           {name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(atob(CFG.salt), c => c.charCodeAt(0)), iterations: CFG.iter},
           base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
-        const dec = async file => {
-          const r = await fetch("data/" + file);
+        const dec = async (file, opts) => {
+          const r = await fetch("data/" + file, opts);
           if (!r.ok) throw new Error("fetch " + r.status);
           const buf = new Uint8Array(await r.arrayBuffer());
           return crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(0, 12)}, key, buf.slice(12));
         };
-        const album = JSON.parse(new TextDecoder().decode(await dec(CFG.album)));
+        const album = JSON.parse(new TextDecoder().decode(await dec(CFG.album, {cache: "no-cache"})));   // имя файла постоянное: иначе браузер 10 минут показывает старый альбом
         try { localStorage.setItem(store, norm(k)); } catch (e) {}
         lock.hidden = true;
         const cache = {};
