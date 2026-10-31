@@ -261,6 +261,25 @@ def build_index():
                    check=True, capture_output=True, text=True)
 
 
+def mark_done(n, slug):
+    """Пометить вариант n на странице выбора как готовый альбом и обновить страницу при следующей публикации."""
+    vote = os.path.join(BASE, "phone-index", "vote")
+    p = os.path.join(vote, "album", "album.json")
+    a = json.load(open(p, encoding="utf-8"))
+    key = open(os.path.join(root_of(slug), "work", "access.key")).read().strip()
+    for c in a["candidates"]:
+        if c["n"] == n:
+            c["done"] = f"{PAGES}/{slug}/#k={key}"
+    json.dump(a, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+
+
+def root_of(slug):
+    for s in glob.glob(os.path.join(BASE, "*", "work", "publish.json")):
+        if json.load(open(s))["slug"] == slug:
+            return os.path.dirname(os.path.dirname(s))
+    sys.exit(f"нет альбома {slug}")
+
+
 def cmd_publish(root, slug=None):
     saved = os.path.join(root, "work", "publish.json")    # slug закрепляется при первой публикации
     if not slug and os.path.exists(saved):
@@ -380,7 +399,7 @@ def cmd_status(root):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people", "name", "index",
+    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people", "name", "index", "done",
                                        "suggest"])
     ap.add_argument("path", nargs="?", default=".")
     ap.add_argument("pairs", nargs="*")                  # name: G1=Даша/Dasha …
@@ -391,7 +410,8 @@ def main():
     {"prepare": lambda: cmd_prepare(a.path), "shortlist": lambda: cmd_shortlist(a.path),
      "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug),
      "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
-     "extras": lambda: cmd_extras(a.path), "index": lambda: (build_index(), cmd_publish(INDEX_ROOT, INDEX_SLUG)), "people": lambda: cmd_people(a.path), "name": lambda: py("faces.py", a.path, "name", *a.pairs),
+     "extras": lambda: cmd_extras(a.path), "index": lambda: (build_index(), cmd_publish(INDEX_ROOT, INDEX_SLUG)),
+     "done": lambda: mark_done(int(os.path.basename(a.path)), a.pairs[0]), "people": lambda: cmd_people(a.path), "name": lambda: py("faces.py", a.path, "name", *a.pairs),
      "suggest": lambda: py("extras.py", a.path, "suggest")}[a.cmd]()
 
 
