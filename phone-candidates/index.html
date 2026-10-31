@@ -211,7 +211,7 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
         h3.children[1].textContent = tx(c, "title");
         if (c.star) { const s = document.createElement("span"); s.className = "star"; s.textContent = " ★"; h3.appendChild(s); }
         const m = document.createElement("div"); m.className = "meta";
-        m.textContent = `${c.dates} · ${c.count} ${t.photos} · ${c.places.join(", ")}`;
+        m.textContent = [c.dates, `${c.count} ${t.photos}`, c.places.join(", ")].filter(Boolean).join(" · ");
         const d = document.createElement("p"); d.className = "desc"; d.textContent = tx(c, "desc");
         const pics = document.createElement("div"); pics.className = "pics";
         c.pics.forEach(f => {
