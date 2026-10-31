@@ -24,7 +24,7 @@
 }
 * { box-sizing: border-box; }
 html { background: var(--paper); }
-body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--sans); padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--sans); padding-bottom: calc(130px + env(safe-area-inset-bottom)); }
 button { font: inherit; cursor: pointer; }
 img { display: block; max-width: 100%; }
 .wrap { max-width: 920px; margin: 0 auto; padding: 0 16px; }
@@ -54,12 +54,17 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
 .opts .l[aria-pressed="true"] { background: var(--later); } .opts .n[aria-pressed="true"] { background: var(--no); }
 @media (max-width: 560px) { .opts { grid-template-columns: repeat(2, 1fr); } .pics { height: 170px; } }
 .bar { position: fixed; z-index: 10; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-  width: min(620px, calc(100% - 24px)); display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; border-radius: 28px;
+  width: min(760px, calc(100% - 24px)); display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 24px;
   background: var(--bar); color: var(--bar-ink); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
-.counts { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.3; }
-.counts small { display: block; font-weight: 400; opacity: .75; font-size: 12px; }
+.counts { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 4px; }
+.counts button { border: 0; border-radius: 12px; padding: 3px 8px; background: none; color: inherit; font-size: 12.5px; font-weight: 600; line-height: 1.3; white-space: nowrap; }
+.counts button:hover { background: rgba(127,127,127,.25); }
+.counts button:disabled { opacity: .45; cursor: default; background: none; }
+.counts i { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 5px; }
+.cand { scroll-margin-top: 12px; }
+.cand.hl { outline: 2px solid var(--accent); outline-offset: 2px; }
 .share { flex: none; border: 0; border-radius: 22px; padding: 11px 18px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; }
-.toast { position: fixed; z-index: 11; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 16px; border-radius: 20px;
+.toast { position: fixed; z-index: 11; left: 50%; bottom: calc(110px + env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 16px; border-radius: 20px;
   background: var(--bar); color: var(--bar-ink); font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; }
 .toast.on { opacity: 1; }
 .lb { position: fixed; inset: 0; z-index: 20; background: #0c0b09; display: grid; place-items: center; }
@@ -101,11 +106,11 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
   const $ = id => document.getElementById(id);
   const H = new URLSearchParams(location.hash.slice(1));
   const T = {
-    ru: {kicker: "Выбор альбомов", yes: "Точно делаем", maybe: "Возможно", later: "Когда-нибудь потом", no: "Не надо", other: "EN",
-         share: "Поделиться", copied: "Ссылка скопирована", copyFail: "Скопируйте ссылку:", photos: "фото", of: "из", chosen: "выбрано",
+    ru: {kicker: "Выбор альбомов", yes: "Точно делаем", maybe: "Возможно", later: "Когда-нибудь потом", no: "Не надо", none: "Не решено", other: "EN",
+         share: "Поделиться", copied: "Ссылка скопирована", copyFail: "Скопируйте ссылку:", photos: "фото",
          lead: "Отметьте каждый вариант. Выбор сохраняется прямо в ссылке: нажмите «Поделиться», и она уйдёт вместе с ключом и всеми отметками."},
-    en: {kicker: "Choosing albums", yes: "Definitely", maybe: "Maybe", later: "Someday", no: "No", other: "RU",
-         share: "Share", copied: "Link copied", copyFail: "Copy the link:", photos: "photos", of: "of", chosen: "chosen",
+    en: {kicker: "Choosing albums", yes: "Definitely", maybe: "Maybe", later: "Someday", no: "No", none: "Undecided", other: "RU",
+         share: "Share", copied: "Link copied", copyFail: "Copy the link:", photos: "photos",
          lead: "Mark each option. Your choices live in the link itself: tap Share and it carries the key and all your marks."},
   };
   const store = "albumkey:" + location.pathname, stateKey = "votes:" + location.pathname;
@@ -150,14 +155,32 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
       url(e.target.dataset.f).then(u => { e.target.src = u; });
     }), {rootMargin: "600px"});
 
+    // счётчики в плашке — кнопки: переход к следующему варианту с этой отметкой (по кругу)
+    const seen = {};
+    function jump(ch) {
+      const list = A.candidates.map((c, i) => i).filter(i => !A.candidates[i].removed && S[i] === ch);
+      if (!list.length) return;
+      const i = list.find(x => x > (seen[ch] ?? -1)) ?? list[0];
+      seen[ch] = i;
+      const el = $("c" + i);
+      el.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"});
+      document.querySelectorAll(".cand.hl").forEach(x => x.classList.remove("hl"));
+      el.classList.add("hl");
+      setTimeout(() => el.classList.remove("hl"), 1800);
+    }
+
     function counts() {
-      const c = ch => S.split(ch).length - 1, t = T[L];
-      $("counts").innerHTML = "";
-      const a = document.createElement("div");
-      a.textContent = `${t.yes}: ${c("y")} · ${t.maybe}: ${c("m")}`;
-      const b = document.createElement("small");
-      b.textContent = `${t.later}: ${c("l")} · ${t.no}: ${c("n")} · ${t.chosen} ${N - c("o")} ${t.of} ${A.candidates.filter(x => !x.removed).length}`;
-      $("counts").append(a, b);
+      const t = T[L], box = $("counts");
+      const n = ch => A.candidates.filter((c, i) => !c.removed && S[i] === ch).length;
+      box.innerHTML = "";
+      [["o", t.none, "currentColor"], ["y", t.yes, "var(--yes)"], ["m", t.maybe, "var(--maybe)"], ["l", t.later, "var(--later)"], ["n", t.no, "var(--no)"]].forEach(([ch, label, col]) => {
+        const b = document.createElement("button"), dot = document.createElement("i");
+        dot.style.background = col;
+        b.append(dot, `${label}: ${n(ch)}`);
+        b.disabled = !n(ch);
+        b.onclick = () => jump(ch);
+        box.appendChild(b);
+      });
       $("share").textContent = t.share;
     }
 
@@ -181,7 +204,7 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
           sec = c.section;
           const h = document.createElement("h2"); h.textContent = tx(c, "section"); app.appendChild(h);
         }
-        const el = document.createElement("article"); el.className = "cand"; el.dataset.v = S[i];
+        const el = document.createElement("article"); el.className = "cand"; el.dataset.v = S[i]; el.id = "c" + i;
         const h3 = document.createElement("h3");
         h3.innerHTML = '<span class="num"></span><span></span>';
         h3.children[0].textContent = c.n + ".";
