@@ -76,7 +76,11 @@ def main():
     files = {}
     for n in sorted(os.listdir(os.path.join(src, "media"))):
         files[n] = seal(n, open(os.path.join(src, "media", n), "rb").read())
-    album_file = seal("album.json", json.dumps({**album, "files": files}, ensure_ascii=False).encode())
+    body = json.dumps({**album, "files": files}, ensure_ascii=False, sort_keys=True).encode()
+    ver = hashlib.sha256(body).hexdigest()[:12]         # страница сверяет с version.txt и предлагает обновиться
+    album_file = seal("album.json", json.dumps({**album, "files": files, "ver": ver}, ensure_ascii=False).encode())
+    with open(os.path.join(out, "version.txt"), "w") as f:
+        f.write(ver)
 
     cfg = {"mode": "enc", "salt": base64.b64encode(salt).decode(), "iter": ITER, "album": album_file}
     page = open(TPL, encoding="utf-8").read()

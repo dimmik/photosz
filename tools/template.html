@@ -214,6 +214,10 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   border-radius: 20px; background: rgba(239,232,220,.95); color: #1d1a16; font: 600 13px/1.3 var(--sans);
   pointer-events: none; opacity: 0; transition: opacity .25s; }
 .lb-toast.on { opacity: 1; }
+.upd { position: fixed; z-index: 50; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border-radius: 22px; white-space: nowrap;
+  background: rgba(29,26,22,.94); color: #efe8dc; font: 500 14px/1.3 var(--sans); box-shadow: 0 4px 20px rgba(0,0,0,.35); }
+.upd button { border: 0; border-radius: 16px; padding: 7px 14px; background: #efe8dc; color: #1d1a16; font: 600 13px/1 var(--sans); cursor: pointer; }
 .lb-wait { color: #8f877b; font: italic 300 18px/1 var(--serif); }
 
 @media (max-width: 720px) {
@@ -257,6 +261,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 </div>
 <script id="cfg" type="application/json">{{CFG}}</script>
 <script>
+if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.pathname + location.hash);
 (function () {
   const CFG = JSON.parse(document.getElementById("cfg").textContent);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -268,13 +273,13 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
   const I18N = {
     ru: {album: "Фотоальбом", chapters: n => n + " " + (n % 10 === 1 && n % 100 !== 11 ? "глава" :
           n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "главы" : "глав"),
-         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:", top: "К началу",
+         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", updated: "Альбом обновился", reload: "Обновить", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:", top: "К началу",
          wrapEnd: "Конец альбома", wrapEndSub: "дальше — с начала", wrapStart: "Начало альбома", wrapStartSub: "дальше — с конца",
          toStart: "Снова с начала альбома", toEnd: "Последнее фото альбома",
          lockTitle: "Закрытый альбом", lockText: "Введите ключ доступа.", open: "Открыть",
          badKey: "Ключ не подходит", failed: "Не удалось загрузить альбом", other: "EN", lang: "ru"},
     en: {album: "Photo album", chapters: n => n + (n === 1 ? " chapter" : " chapters"),
-         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", copied: "Link to this photo copied", copyFail: "Copy the link:", top: "Back to top",
+         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", updated: "The album was updated", reload: "Refresh", copied: "Link to this photo copied", copyFail: "Copy the link:", top: "Back to top",
          wrapEnd: "End of the album", wrapEndSub: "next — back to the start", wrapStart: "Start of the album", wrapStartSub: "next — the last photo",
          toStart: "Back to the start of the album", toEnd: "Last photo of the album",
          lockTitle: "Private album", lockText: "Enter the access key.", open: "Open",
@@ -562,6 +567,23 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
     lb.classList.contains("open") ? show(k) : openLb(k);
   }
   addEventListener("popstate", () => fromUrl(false));
+
+  // новая версия на сервере: предлагаем обновиться (?v= — новый адрес, мимо кэша браузера)
+  let updShown = false;
+  const checkVer = async () => {
+    if (updShown || !A.ver) return;
+    let v = "";
+    try { const r = await fetch("version.txt", {cache: "no-store"}); if (r.ok) v = (await r.text()).trim(); } catch (e) {}
+    if (!/^[0-9a-f]{12}$/.test(v) || v === A.ver) return;
+    updShown = true;
+    const bar = document.createElement("div"); bar.className = "upd"; bar.id = "upd";
+    bar.innerHTML = "<span></span><button></button>";
+    bar.children[0].textContent = T.updated; bar.children[1].textContent = T.reload;
+    bar.children[1].onclick = () => location.replace(location.pathname + "?v=" + v + location.hash);
+    document.body.appendChild(bar);
+  };
+  checkVer();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVer(); });
 
   // ссылка на текущее фото — сразу с ключом (у получателя ключ может быть не сохранён)
   const toast = document.createElement("div"); toast.className = "lb-toast"; lb.appendChild(toast);
