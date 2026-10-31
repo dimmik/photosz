@@ -170,20 +170,23 @@ def cmd_shortlist(root):
 
 def cmd_extras(root):
     work = os.path.join(root, "work")
-    py("build.py", root)                                 # нужен album.json: лица ищем среди фото альбома
+    py("build.py", root)                                 # нужен album.json
     py("extras.py", root, "signs")
-    py("extras.py", root, "faces")
     t, prompts = trip(root), []
     signs = sorted(glob.glob(os.path.join(work, "extras", "sign_*.jpg")))
     if signs:
         prompts.append(("sonnet", write_prompt(root, "signs.txt", tpl(
             "signs.md", TRIP=t, SHEETS=", ".join(signs), OUT=os.path.join(work, "signs.json")))))
-    faces = sorted(glob.glob(os.path.join(work, "extras", "faces_*.jpg")))
-    prompts.append(("haiku", write_prompt(root, "faces.txt", tpl(
-        "faces.md", SHEETS=", ".join(faces), OUT=os.path.join(work, "faces.json")))))
     print("\nПРОМПТЫ ДОПОЛНЕНИЙ (параллельно):")
     for model, p in prompts:
         print(f"  {model:7} {p}")
+
+
+def cmd_people(root):
+    if not os.path.exists(os.path.join(root, "work", "faces.npz")):
+        py("faces.py", root, "scan")
+    py("faces.py", root, "learn")
+    py("faces.py", root, "auto")
 
 
 # ── build ────────────────────────────────────────────────────────────────────
@@ -328,9 +331,10 @@ def cmd_status(root):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people",
+    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people", "name",
                                        "suggest"])
     ap.add_argument("path", nargs="?", default=".")
+    ap.add_argument("pairs", nargs="*")                  # name: G1=Даша/Dasha …
     ap.add_argument("--slug")
     ap.add_argument("--title")
     a = ap.parse_args()
@@ -338,7 +342,7 @@ def main():
     {"prepare": lambda: cmd_prepare(a.path), "shortlist": lambda: cmd_shortlist(a.path),
      "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug),
      "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
-     "extras": lambda: cmd_extras(a.path), "people": lambda: py("extras.py", a.path, "people"),
+     "extras": lambda: cmd_extras(a.path), "people": lambda: cmd_people(a.path), "name": lambda: py("faces.py", a.path, "name", *a.pairs),
      "suggest": lambda: py("extras.py", a.path, "suggest")}[a.cmd]()
 
 

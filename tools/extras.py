@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Дополнения после прохода 2: таблички с описаниями объектов и люди, смотрящие в камеру. Без ИИ.
+"""Дополнения после прохода 2: таблички с описаниями объектов и предложения. Без ИИ.
 
   python3 tools/extras.py "<альбом>" signs    табличка крупно + снимки рядом по времени → work/extras/sign_NN.jpg
-  python3 tools/extras.py "<альбом>" faces    фото альбома листами для поиска лиц → work/extras/faces_N.jpg
-  python3 tools/extras.py "<альбом>" people   лист для пользователя: только фото с лицами → work/extras/people.jpg
   python3 tools/extras.py "<альбом>" suggest  «что ещё могло бы попасть»: дыры по времени, «дорога», моменты
                                               → work/extras/suggest.jpg
 
@@ -94,47 +92,6 @@ def cmd_signs(root):
     print(f"табличек: {len(smap)} → {out_dir}/sign_*.jpg")
 
 
-def album_photos(root):
-    album = json.load(open(os.path.join(root, "album", "album.json")))
-    return [it["id"] for c in album["chapters"] for it in c["items"] if it["type"] == "photo"]
-
-
-def cmd_faces(root):
-    work = os.path.join(root, "work")
-    out_dir = os.path.join(work, "extras")
-    os.makedirs(out_dir, exist_ok=True)
-    for f in glob.glob(os.path.join(out_dir, "faces_*.jpg")):
-        os.remove(f)
-    ids = list(dict.fromkeys(album_photos(root)))
-    fmap = {f"P{i}": f for i, f in enumerate(ids, 1)}
-    labs = list(fmap)
-    for j in range(0, len(labs), 20):                    # 4 × 5 по 360 px — лица ещё различимы
-        cells = [sel.cell(os.path.join(work, "thumbs", fmap[l] + ".jpg"), 360, l) for l in labs[j:j + 20]]
-        sel.grid(cells, 4, 360).save(os.path.join(out_dir, f"faces_{j // 20 + 1}.jpg"), quality=85)
-    json.dump(fmap, open(os.path.join(out_dir, "faces_map.json"), "w"), indent=1)
-    print(f"фото альбома: {len(ids)} → {out_dir}/faces_*.jpg")
-
-
-def cmd_people(root):
-    work = os.path.join(root, "work")
-    out_dir = os.path.join(work, "extras")
-    fmap = json.load(open(os.path.join(out_dir, "faces_map.json")))
-    found = json.load(open(os.path.join(work, "faces.json")))
-    pp = os.path.join(work, "people.json")
-    named = json.load(open(pp)) if os.path.exists(pp) else {}
-    in_album = set(album_photos(root))
-    labs = [l for l in fmap if found.get(l) and fmap[l] in in_album]
-    if not labs:
-        print("лиц в камеру не найдено")
-        return
-    media = os.path.join(root, "album", "media")
-    cells = [sel.cell(os.path.join(media, fmap[l] + "_t.jpg"), 520, l) for l in labs]
-    sel.grid(cells, 3, 520).save(os.path.join(out_dir, "people.jpg"), quality=86)
-    print(f"лица в камеру: {len(labs)} фото → {os.path.join(out_dir, 'people.jpg')}")
-    for l in labs:
-        print(f"  {l:4} {fmap[l]}" + (f"  уже подписано: {named[fmap[l]].get('ru')}" if fmap[l] in named else ""))
-
-
 def cmd_suggest(root):
     work = os.path.join(root, "work")
     meta = {r["id"]: r for r in json.load(open(os.path.join(work, "meta.json")))}
@@ -192,9 +149,9 @@ def cmd_suggest(root):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("root")
-    ap.add_argument("cmd", choices=["signs", "faces", "people", "suggest"])
+    ap.add_argument("cmd", choices=["signs", "suggest"])
     a = ap.parse_args()
-    {"signs": cmd_signs, "faces": cmd_faces, "people": cmd_people, "suggest": cmd_suggest}[a.cmd](a.root)
+    {"signs": cmd_signs, "suggest": cmd_suggest}[a.cmd](a.root)
 
 
 if __name__ == "__main__":

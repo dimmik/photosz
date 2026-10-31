@@ -50,6 +50,8 @@ def translit(s):
 
 
 def with_names(cap, names):
+    if names in cap:                                     # имя уже в подписи серии
+        return cap
     return f"{cap} — {names}" if cap else names
 
 
