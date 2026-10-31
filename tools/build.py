@@ -9,7 +9,7 @@
 ({id: {"ru": "Маша", "en": "Masha"}} — кто на фото, со слов пользователя).
 Пишет <папка>/album/index.html, album/album.json, album/media/*.
 """
-import argparse, html, json, os, subprocess
+import argparse, html, json, os, re, subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
@@ -50,7 +50,7 @@ def translit(s):
 
 
 def with_names(cap, names):
-    if names in cap:                                     # имя уже в подписи серии
+    if all(n[:-1] in cap for n in re.split(" и | and ", names)):   # имя уже в подписи, в любом падеже
         return cap
     return f"{cap} — {names}" if cap else names
 
