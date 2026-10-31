@@ -6,6 +6,7 @@
   python3 tools/faces.py "<альбом>" auto            подписать знакомых в work/people.json, незнакомых — лист групп
                                                     work/extras/people.jpg с метками G#
   python3 tools/faces.py "<альбом>" name G1=Даша/Dasha G2=…   назвать группы и снова подписать
+  python3 tools/faces.py "<альбом>" guard           проверить album/media на людей из .faces/never.npz (код 1, если нашлись)
 
 Веса — в .faces/models/ (скачиваются сами, с проверкой SHA-256), справочник людей — .faces/people.npz.
 Векторы лиц — биометрия семьи: .faces/ и work/ в git не попадают и никуда не отправляются.
@@ -22,6 +23,7 @@ pillow_heif.register_heif_opener()
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOME = os.path.join(os.path.dirname(HERE), ".faces")
 BOOK = os.path.join(HOME, "people.npz")
+NEVER = os.path.join(HOME, "never.npz")   # люди, которых нельзя публиковать: только для исключения
 MODELS = {
     "face_detection_yunet_2023mar.onnx": ("face_detection_yunet", "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"),
     "face_recognition_sface_2021dec.onnx": ("face_recognition_sface", "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79"),
@@ -32,6 +34,7 @@ MIN_SHARE = 0.07       # подписываем лицо не мельче 7% к
 TURN = 0.35            # нос дальше 0.35 межглазья от центра — лицо сильно повёрнуто, подпись не ставим
 SAME = 0.42            # косинус: то же лицо при группировке (порог SFace — 0.363, берём строже)
 KNOWN = 0.45           # косинус: совпало со справочником
+GUARD = 0.40            # стоп-лист: порог ниже обычного, лучше спросить лишний раз
 MARGIN = 0.06          # лучший человек должен обойти второго, иначе не подписываем
 BOOK_MAX = 40          # векторов на человека
 
@@ -237,16 +240,50 @@ def cmd_name(root, pairs):
     cmd_auto(root)
 
 
+def cmd_guard(root):
+    """Стоп-лист: лицо ближе к человеку из never.npz, чем к кому-либо из справочника, — публикация запрещена."""
+    if not os.path.exists(NEVER):
+        return
+    never = np.load(NEVER)["vecs"]
+    book = load_book()
+    det = cv2.FaceDetectorYN.create(model("face_detection_yunet_2023mar.onnx"), "", (320, 320), 0.7)
+    rec = cv2.FaceRecognizerSF.create(model("face_recognition_sface_2021dec.onnx"), "")
+    media = os.path.join(root, "album", "media")
+    hits = []
+    okp = os.path.join(root, "work", "guard_ok.json")      # проверенные глазами ложные срабатывания
+    ok = set(json.load(open(okp))) if os.path.exists(okp) else set()
+    for f in sorted(os.listdir(media)):
+        if not f.endswith(".jpg") or f.endswith("_t.jpg") or f in ok:
+            continue
+        bgr = np.array(load_rgb(os.path.join(media, f)))[:, :, ::-1].copy()
+        h, w = bgr.shape[:2]
+        det.setInputSize((w, h))
+        found = det.detect(bgr)[1]
+        for x in found if found is not None else []:
+            if min(x[2], x[3]) < 32:
+                continue
+            v = rec.feature(rec.alignCrop(bgr, x))[0]
+            v = v / np.linalg.norm(v)
+            s = float(np.max(never @ v))
+            fam = max((float(np.max(p["vecs"] @ v)) for p in book.values()), default=0)
+            if s >= GUARD and s > fam:
+                hits.append((f, round(s, 2)))
+    if hits:
+        print("СТОП-ЛИСТ, в альбоме найдено:", hits)
+        raise SystemExit(1)
+    print("стоп-лист: чисто")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("root")
-    ap.add_argument("cmd", choices=["scan", "learn", "auto", "name"])
+    ap.add_argument("cmd", choices=["scan", "learn", "auto", "name", "guard"])
     ap.add_argument("pairs", nargs="*")
     a = ap.parse_args()
     if a.cmd == "name":
         cmd_name(a.root, a.pairs)
     else:
-        {"scan": cmd_scan, "learn": cmd_learn, "auto": cmd_auto}[a.cmd](a.root)
+        {"scan": cmd_scan, "learn": cmd_learn, "auto": cmd_auto, "guard": cmd_guard}[a.cmd](a.root)
 
 
 if __name__ == "__main__":

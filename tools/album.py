@@ -268,6 +268,8 @@ def cmd_publish(root, slug=None):
     slug = slug or slugify(os.path.basename(os.path.abspath(root)))
     json.dump({"slug": slug}, open(saved, "w"))
     token = open(os.path.join(BASE, "token.txt")).read().strip()
+    if os.path.abspath(root) != INDEX_ROOT:              # стоп-лист: людей из never.npz не публикуем
+        py("faces.py", root, "guard")
     out = subprocess.run([sys.executable, os.path.join(HERE, "publish.py"), root, "--repo", REPO_DIR, "--slug", slug],
                          check=True, capture_output=True, text=True).stdout
     key = re.search(r"^KEY (\S+)", out, re.M).group(1)
