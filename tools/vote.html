@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>{{TITLE}}</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M19 50l-3 11M45 50l3 11' stroke='%232b211a' stroke-width='4.5' stroke-linecap='round'/%3E%3Crect x='21' y='5' width='15' height='10' rx='3' fill='%232b211a'/%3E%3Crect x='3' y='11' width='58' height='41' rx='11' fill='%23e8643a'/%3E%3Ccircle cx='52' cy='20' r='3.5' fill='%23ffd84a'/%3E%3Ccircle cx='31' cy='32' r='16' fill='%23fff' stroke='%232b211a' stroke-width='3.5'/%3E%3Ccircle cx='36' cy='28' r='8' fill='%232b211a'/%3E%3Ccircle cx='38.5' cy='25.5' r='2.6' fill='%23fff'/%3E%3Cpath d='M14 22q6-8 16-7' stroke='%232b211a' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f4efe6; --card: #fbf8f2; --ink: #1d1a16; --ink-2: #5d564c; --ink-3: #8f877b; --accent: #c2502e;
+  --rule: #d6cdbd; --tile: #e2dacb; --bar: rgba(29,26,22,.95); --bar-ink: #efe8dc;
+  --yes: #2f7d4f; --maybe: #b07a12; --later: #4a6fa5; --no: #8d4a4a;
+  --serif: "Fraunces", Georgia, serif; --sans: "Manrope", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #15130f; --card: #1d1a15; --ink: #efe8dc; --ink-2: #b3aa9b; --ink-3: #7d7569; --accent: #e07a55;
+    --rule: #38322a; --tile: #29251f; --bar: rgba(239,232,220,.96); --bar-ink: #1d1a16;
+    --yes: #5fbf86; --maybe: #dcaa45; --later: #86a9dc; --no: #cf8a8a; }
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--sans); padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+button { font: inherit; cursor: pointer; }
+img { display: block; max-width: 100%; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+header { padding: 48px 0 8px; position: relative; }
+.kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+h1 { font: 400 clamp(34px, 7vw, 54px)/1.05 var(--serif); margin: 10px 0 12px; }
+.lead { color: var(--ink-2); max-width: 620px; margin: 0; }
+.lang { position: absolute; top: 16px; right: 0; background: none; border: 1px solid var(--rule); color: var(--ink-2); border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 600; }
+h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); }
+.cand { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; margin-bottom: 14px; border-left: 4px solid var(--rule); }
+.cand[data-v="y"] { border-left-color: var(--yes); } .cand[data-v="m"] { border-left-color: var(--maybe); }
+.cand[data-v="l"] { border-left-color: var(--later); } .cand[data-v="n"] { border-left-color: var(--no); }
+.cand[data-v="n"] .pics { opacity: .45; }
+.cand h3 { font: 500 21px/1.25 var(--serif); margin: 0 0 4px; }
+.cand h3 .num { color: var(--ink-3); font-family: var(--sans); font-size: 14px; font-weight: 600; margin-right: 6px; }
+.star { color: var(--accent); }
+.meta { color: var(--ink-3); font-size: 13px; }
+.desc { margin: 8px 0 12px; color: var(--ink-2); }
+.pics { display: flex; gap: 8px; height: 220px; margin-bottom: 12px; overflow: hidden; }
+.pics button { flex: 1 1 0; min-width: 0; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: var(--tile); }
+.pics img { width: 100%; height: 100%; object-fit: cover; }
+.opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.opts button { padding: 10px 6px; border: 1px solid var(--rule); border-radius: 6px; background: none; color: var(--ink-2); font-size: 14px; font-weight: 600; line-height: 1.2; }
+.opts button[aria-pressed="true"] { color: #fff; border-color: transparent; }
+@media (prefers-color-scheme: dark) { .opts button[aria-pressed="true"] { color: #15130f; } }
+.opts .y[aria-pressed="true"] { background: var(--yes); } .opts .m[aria-pressed="true"] { background: var(--maybe); }
+.opts .l[aria-pressed="true"] { background: var(--later); } .opts .n[aria-pressed="true"] { background: var(--no); }
+@media (max-width: 560px) { .opts { grid-template-columns: repeat(2, 1fr); } .pics { height: 170px; } }
+.bar { position: fixed; z-index: 10; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: min(620px, calc(100% - 24px)); display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; border-radius: 28px;
+  background: var(--bar); color: var(--bar-ink); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.counts { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.3; }
+.counts small { display: block; font-weight: 400; opacity: .75; font-size: 12px; }
+.share { flex: none; border: 0; border-radius: 22px; padding: 11px 18px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; }
+.toast { position: fixed; z-index: 11; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 8px 16px; border-radius: 20px;
+  background: var(--bar); color: var(--bar-ink); font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; }
+.toast.on { opacity: 1; }
+.lb { position: fixed; inset: 0; z-index: 20; background: #0c0b09; display: grid; place-items: center; }
+.lb[hidden] { display: none; }
+.lb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lb button { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; border: 0; border-radius: 22px; background: rgba(255,255,255,.14); color: #fff; font-size: 24px; line-height: 1; }
+.lock { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: var(--paper); }
+.lock[hidden] { display: none; }
+.lock form { width: min(420px, 100%); text-align: center; }
+.lock h1 { margin-top: 14px; }
+.lock p { color: var(--ink-2); margin: 0 0 24px; }
+.lock input { width: 100%; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); color: var(--ink); font: 500 17px/1.2 var(--sans); text-align: center; letter-spacing: .08em; }
+.lock form > button { margin-top: 12px; width: 100%; padding: 13px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; font-weight: 600; }
+.lock-err { min-height: 22px; margin-top: 12px; color: var(--accent); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="lock" id="lock" hidden>
+  <form id="lock-form" autocomplete="off">
+    <div class="kicker">Фотоальбомы · Photo albums</div>
+    <h1>Ключ · Key</h1>
+    <p>Введите ключ доступа. Enter the access key.</p>
+    <input id="lock-key" type="text" spellcheck="false" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX" aria-label="Key">
+    <button type="submit">Открыть · Open</button>
+    <div class="lock-err" id="lock-err"></div>
+  </form>
+</div>
+<div class="wrap" id="app" hidden></div>
+<div class="bar" id="bar" hidden>
+  <div class="counts" id="counts"></div>
+  <button class="share" id="share"></button>
+</div>
+<div class="toast" id="toast"></div>
+<div class="lb" id="lb" hidden><img id="lb-img" alt=""><button id="lb-x" aria-label="×">×</button></div>
+<script id="cfg" type="application/json">{{CFG}}</script>
+<script>
+(() => {
+  const CFG = JSON.parse(document.getElementById("cfg").textContent);
+  const $ = id => document.getElementById(id);
+  const H = new URLSearchParams(location.hash.slice(1));
+  const T = {
+    ru: {kicker: "Выбор альбомов", yes: "Точно делаем", maybe: "Возможно", later: "Когда-нибудь потом", no: "Не надо", other: "EN",
+         share: "Поделиться", copied: "Ссылка скопирована", copyFail: "Скопируйте ссылку:", photos: "фото", of: "из", chosen: "выбрано",
+         lead: "Отметьте каждый вариант. Выбор сохраняется прямо в ссылке: нажмите «Поделиться», и она уйдёт вместе с ключом и всеми отметками."},
+    en: {kicker: "Choosing albums", yes: "Definitely", maybe: "Maybe", later: "Someday", no: "No", other: "RU",
+         share: "Share", copied: "Link copied", copyFail: "Copy the link:", photos: "photos", of: "of", chosen: "chosen",
+         lead: "Mark each option. Your choices live in the link itself: tap Share and it carries the key and all your marks."},
+  };
+  const store = "albumkey:" + location.pathname, stateKey = "votes:" + location.pathname;
+  const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const put = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  let L = H.get("l") || get("lang") || (navigator.language.startsWith("ru") ? "ru" : "en");
+  if (!T[L]) L = "ru";
+  const norm = k => (k || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+
+  async function tryKey(k) {
+    const enc = new TextEncoder();
+    const base = await crypto.subtle.importKey("raw", enc.encode(norm(k)), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      {name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(atob(CFG.salt), c => c.charCodeAt(0)), iterations: CFG.iter},
+      base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
+    const dec = async (file, opts) => {
+      const r = await fetch("data/" + file, opts);
+      if (!r.ok) throw new Error("fetch " + r.status);
+      const buf = new Uint8Array(await r.arrayBuffer());
+      return crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(0, 12)}, key, buf.slice(12));
+    };
+    const A = JSON.parse(new TextDecoder().decode(await dec(CFG.album, {cache: "no-cache"})));
+    put(store, norm(k));
+    $("lock").hidden = true;
+    const cache = {};
+    render(A, n => cache[n] || (cache[n] = dec(A.files[n]).then(b => URL.createObjectURL(new Blob([b], {type: "image/jpeg"})))),
+           norm(k).match(/.{1,4}/g).join("-"));
+    return true;
+  }
+
+  function render(A, url, KEY) {
+    const N = A.candidates.length;
+    // состояние: по букве на кандидата (o — не выбрано, y/m/l/n); ключ в ссылке оставляем намеренно
+    const clean = s => /^[oymln]+$/.test(s || "") ? s.slice(0, N).padEnd(N, "o") : null;
+    let S = clean(H.get("s")) || clean(get(stateKey)) || "o".repeat(N);
+    const link = () => location.origin + location.pathname + "#k=" + KEY + "&s=" + S + (L === "en" ? "&l=en" : "");
+    const sync = () => { history.replaceState(null, "", link()); put(stateKey, S); };
+    const tx = (o, f) => (L === "en" && o[f + "_en"]) || o[f];
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      io.unobserve(e.target);
+      url(e.target.dataset.f).then(u => { e.target.src = u; });
+    }), {rootMargin: "600px"});
+
+    function counts() {
+      const c = ch => S.split(ch).length - 1, t = T[L];
+      $("counts").innerHTML = "";
+      const a = document.createElement("div");
+      a.textContent = `${t.yes}: ${c("y")} · ${t.maybe}: ${c("m")}`;
+      const b = document.createElement("small");
+      b.textContent = `${t.later}: ${c("l")} · ${t.no}: ${c("n")} · ${t.chosen} ${N - c("o")} ${t.of} ${N}`;
+      $("counts").append(a, b);
+      $("share").textContent = t.share;
+    }
+
+    function draw() {
+      const t = T[L], app = $("app");
+      document.documentElement.lang = L;
+      document.title = tx(A, "title");
+      app.innerHTML = "";
+      const head = document.createElement("header");
+      head.innerHTML = '<div class="kicker"></div><h1></h1><p class="lead"></p><button class="lang"></button>';
+      head.children[0].textContent = t.kicker;
+      head.children[1].textContent = tx(A, "title");
+      head.children[2].textContent = t.lead;
+      head.children[3].textContent = t.other;
+      head.children[3].onclick = () => { L = L === "ru" ? "en" : "ru"; put("lang", L); sync(); draw(); };
+      app.appendChild(head);
+      let sec = null;
+      A.candidates.forEach((c, i) => {
+        if (c.section !== sec) {
+          sec = c.section;
+          const h = document.createElement("h2"); h.textContent = tx(c, "section"); app.appendChild(h);
+        }
+        const el = document.createElement("article"); el.className = "cand"; el.dataset.v = S[i];
+        const h3 = document.createElement("h3");
+        h3.innerHTML = '<span class="num"></span><span></span>';
+        h3.children[0].textContent = c.n + ".";
+        h3.children[1].textContent = tx(c, "title");
+        if (c.star) { const s = document.createElement("span"); s.className = "star"; s.textContent = " ★"; h3.appendChild(s); }
+        const m = document.createElement("div"); m.className = "meta";
+        m.textContent = `${c.dates} · ${c.count} ${t.photos} · ${c.places.join(", ")}`;
+        const d = document.createElement("p"); d.className = "desc"; d.textContent = tx(c, "desc");
+        const pics = document.createElement("div"); pics.className = "pics";
+        c.pics.forEach(f => {
+          const b = document.createElement("button"), im = document.createElement("img");
+          im.alt = ""; im.dataset.f = f; io.observe(im);
+          b.appendChild(im);
+          b.onclick = async () => { $("lb-img").src = await url(f); $("lb").hidden = false; };
+          pics.appendChild(b);
+        });
+        const opts = document.createElement("div"); opts.className = "opts";
+        [["y", t.yes], ["m", t.maybe], ["l", t.later], ["n", t.no]].forEach(([k, label]) => {
+          const b = document.createElement("button");
+          b.className = k; b.textContent = label; b.setAttribute("aria-pressed", S[i] === k);
+          b.onclick = () => {
+            const v = S[i] === k ? "o" : k;           // повторное нажатие снимает выбор
+            S = S.slice(0, i) + v + S.slice(i + 1);
+            el.dataset.v = v;
+            opts.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.classList.contains(v)));
+            sync(); counts();
+          };
+          opts.appendChild(b);
+        });
+        el.append(h3, m, d, pics, opts);
+        app.appendChild(el);
+      });
+      counts();
+    }
+
+    let toastT;
+    const say = m => { const e = $("toast"); e.textContent = m; e.classList.add("on"); clearTimeout(toastT);
+      toastT = setTimeout(() => e.classList.remove("on"), 2200); };
+    $("share").onclick = async () => {
+      const u = link();
+      if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+        try { await navigator.share({title: tx(A, "title"), url: u}); return; }
+        catch (e) { if (e.name === "AbortError") return; }
+      }
+      try { await navigator.clipboard.writeText(u); say(T[L].copied); }
+      catch (e) { prompt(T[L].copyFail, u); }
+    };
+    const closeLb = () => { $("lb").hidden = true; $("lb-img").removeAttribute("src"); };
+    $("lb-x").onclick = closeLb;
+    addEventListener("keydown", e => { if (e.key === "Escape") closeLb(); });
+    $("app").hidden = false; $("bar").hidden = false;
+    sync(); draw();
+  }
+
+  $("lock-form").onsubmit = async e => {
+    e.preventDefault();
+    try { await tryKey($("lock-key").value); }
+    catch (err) { $("lock-err").textContent = "Неверный ключ · Wrong key"; }
+  };
+  (async () => {
+    for (const k of [H.get("k"), get(store)]) {
+      if (k) try { if (await tryKey(k)) return; } catch (e) {}
+    }
+    $("lock").hidden = false;
+  })();
+})();
+</script>
+</body>
+</html>

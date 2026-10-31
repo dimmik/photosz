@@ -83,7 +83,7 @@ def main():
         f.write(ver)
 
     cfg = {"mode": "enc", "salt": base64.b64encode(salt).decode(), "iter": ITER, "album": album_file}
-    page = open(TPL, encoding="utf-8").read()
+    page = open(os.path.join(os.path.dirname(TPL), album.get("template", "template.html")), encoding="utf-8").read()
     page = page.replace("{{TITLE}}", "Фотоальбом")              # настоящее название — только внутри шифра
     page = page.replace("{{CFG}}", json.dumps(cfg))
     with open(os.path.join(out, "index.html"), "w", encoding="utf-8") as f:
