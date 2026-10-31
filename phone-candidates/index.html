@@ -41,6 +41,8 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
 .cand h3 { font: 500 21px/1.25 var(--serif); margin: 0 0 4px; }
 .cand h3 .num { color: var(--ink-3); font-family: var(--sans); font-size: 14px; font-weight: 600; margin-right: 6px; }
 .star { color: var(--accent); }
+.done { display: inline-block; margin-left: 8px; padding: 2px 10px; border-radius: 12px; background: var(--yes); color: #fff; font: 700 12px/1.5 var(--sans); text-decoration: none; vertical-align: middle; }
+@media (prefers-color-scheme: dark) { .done { color: #15130f; } }
 .meta { color: var(--ink-3); font-size: 13px; }
 .desc { margin: 8px 0 12px; color: var(--ink-2); }
 .pics { display: flex; gap: 8px; height: 220px; margin-bottom: 12px; overflow: hidden; }
@@ -106,10 +108,10 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
   const $ = id => document.getElementById(id);
   const H = new URLSearchParams(location.hash.slice(1));
   const T = {
-    ru: {kicker: "Выбор альбомов", yes: "Точно делаем", maybe: "Возможно", later: "Когда-нибудь потом", no: "Не надо", none: "Не решено", other: "EN",
+    ru: {kicker: "Выбор альбомов", yes: "Точно делаем", maybe: "Возможно", later: "Когда-нибудь потом", no: "Не надо", none: "Не решено", done: "Готово: открыть", other: "EN",
          share: "Поделиться", copied: "Ссылка скопирована", copyFail: "Скопируйте ссылку:", photos: "фото",
          lead: "Отметьте каждый вариант. Выбор сохраняется прямо в ссылке: нажмите «Поделиться», и она уйдёт вместе с ключом и всеми отметками."},
-    en: {kicker: "Choosing albums", yes: "Definitely", maybe: "Maybe", later: "Someday", no: "No", none: "Undecided", other: "RU",
+    en: {kicker: "Choosing albums", yes: "Definitely", maybe: "Maybe", later: "Someday", no: "No", none: "Undecided", done: "Done: open", other: "RU",
          share: "Share", copied: "Link copied", copyFail: "Copy the link:", photos: "photos",
          lead: "Mark each option. Your choices live in the link itself: tap Share and it carries the key and all your marks."},
   };
@@ -210,6 +212,9 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
         h3.children[0].textContent = c.n + ".";
         h3.children[1].textContent = tx(c, "title");
         if (c.star) { const s = document.createElement("span"); s.className = "star"; s.textContent = " ★"; h3.appendChild(s); }
+        if (c.done) {                                  // готовый альбом: плашка-ссылка
+          const a = document.createElement("a"); a.className = "done"; a.href = c.done; a.textContent = t.done; h3.appendChild(a);
+        }
         const m = document.createElement("div"); m.className = "meta";
         m.textContent = [c.dates, `${c.count} ${t.photos}`, c.places.join(", ")].filter(Boolean).join(" · ");
         const d = document.createElement("p"); d.className = "desc"; d.textContent = tx(c, "desc");
