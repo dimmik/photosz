@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>{{TITLE}}</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M19 50l-3 11M45 50l3 11' stroke='%232b211a' stroke-width='4.5' stroke-linecap='round'/%3E%3Crect x='21' y='5' width='15' height='10' rx='3' fill='%232b211a'/%3E%3Crect x='3' y='11' width='58' height='41' rx='11' fill='%23e8643a'/%3E%3Ccircle cx='52' cy='20' r='3.5' fill='%23ffd84a'/%3E%3Ccircle cx='31' cy='32' r='16' fill='%23fff' stroke='%232b211a' stroke-width='3.5'/%3E%3Ccircle cx='36' cy='28' r='8' fill='%232b211a'/%3E%3Ccircle cx='38.5' cy='25.5' r='2.6' fill='%23fff'/%3E%3Cpath d='M14 22q6-8 16-7' stroke='%232b211a' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --paper: #f4efe6; --card: #fbf8f2; --ink: #1d1a16; --ink-2: #5d564c; --ink-3: #8f877b; --accent: #c2502e; --rule: #d6cdbd; --tile: #e2dacb;
+  --serif: "Fraunces", Georgia, serif; --sans: "Manrope", system-ui, sans-serif; }
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #15130f; --card: #1d1a15; --ink: #efe8dc; --ink-2: #b3aa9b; --ink-3: #7d7569; --accent: #e07a55; --rule: #38322a; --tile: #29251f; }
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--sans); }
+button, a { font: inherit; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 48px 16px 64px; }
+h1 { font: 400 clamp(34px, 7vw, 52px)/1.05 var(--serif); margin: 0 0 8px; }
+.lead { color: var(--ink-2); margin: 0 0 28px; }
+.item { display: grid; grid-template-columns: 240px 1fr; gap: 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+.pics { display: grid; gap: 6px; grid-auto-flow: column; grid-auto-columns: 1fr; height: 170px; min-width: 0; }
+.pics a { background: var(--tile); border-radius: 4px; overflow: hidden; min-width: 0; }
+.pics img { display: block; width: 100%; height: 100%; object-fit: cover; }
+h2 { font: 500 24px/1.2 var(--serif); margin: 0 0 2px; }
+h2 a { color: inherit; text-decoration: none; }
+.dates { color: var(--ink-3); font-size: 14px; margin-bottom: 10px; }
+.key { font: 600 15px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .04em; overflow-wrap: anywhere; margin-bottom: 10px; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts a, .acts button { padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.acts a { background: var(--accent); color: #fff; border: 1px solid transparent; }
+.acts button { background: none; border: 1px solid var(--rule); color: var(--ink-2); }
+@media (max-width: 560px) { .item { grid-template-columns: 1fr; } }
+.lock { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: var(--paper); }
+.lock[hidden] { display: none; }
+.lock form { width: min(420px, 100%); text-align: center; }
+.lock input { width: 100%; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); color: var(--ink); font: 500 17px/1.2 var(--sans); text-align: center; letter-spacing: .08em; }
+.lock form > button { margin-top: 12px; width: 100%; padding: 13px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+.lock-err { min-height: 22px; margin-top: 12px; color: var(--accent); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="lock" id="lock" hidden>
+  <form id="lock-form" autocomplete="off">
+    <h1>Ключ</h1>
+    <input id="lock-key" type="text" spellcheck="false" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX" aria-label="Ключ">
+    <button type="submit">Открыть</button>
+    <div class="lock-err" id="lock-err"></div>
+  </form>
+</div>
+<div class="wrap" id="app" hidden></div>
+<script id="cfg" type="application/json">{{CFG}}</script>
+<script>
+(() => {
+  const CFG = JSON.parse(document.getElementById("cfg").textContent);
+  const $ = id => document.getElementById(id);
+  const fromHash = new URLSearchParams(location.hash.slice(1)).get("k");
+  if (location.hash) history.replaceState(null, "", location.pathname);   // ключ в адресе не оставляем
+  const store = "albumkey:" + location.pathname;
+  const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const norm = k => (k || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+  async function tryKey(k) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(norm(k)), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      {name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(atob(CFG.salt), c => c.charCodeAt(0)), iterations: CFG.iter},
+      base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
+    const dec = async (file, opts) => {
+      const r = await fetch("data/" + file, opts);
+      if (!r.ok) throw new Error("fetch " + r.status);
+      const buf = new Uint8Array(await r.arrayBuffer());
+      return crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(0, 12)}, key, buf.slice(12));
+    };
+    const A = JSON.parse(new TextDecoder().decode(await dec(CFG.album, {cache: "no-cache"})));
+    try { localStorage.setItem(store, norm(k)); } catch (e) {}
+    $("lock").hidden = true;
+    const url = n => dec(A.files[n]).then(b => URL.createObjectURL(new Blob([b], {type: "image/jpeg"})));
+    const app = $("app");
+    document.title = A.title;
+    const h = document.createElement("h1"); h.textContent = A.title;
+    const p = document.createElement("p"); p.className = "lead"; p.textContent = A.albums.length + " · новые сверху";
+    app.append(h, p);
+    A.albums.forEach(a => {
+      const el = document.createElement("article"); el.className = "item";
+      const pics = document.createElement("div"); pics.className = "pics";
+      a.pics.forEach(f => {
+        const l = document.createElement("a"), im = document.createElement("img");
+        l.href = a.url; im.alt = ""; l.appendChild(im); pics.appendChild(l);
+        url(f).then(u => { im.src = u; });
+      });
+      const b = document.createElement("div");
+      const t = document.createElement("h2"), ta = document.createElement("a");
+      ta.href = a.url; ta.textContent = a.title; t.appendChild(ta);
+      const d = document.createElement("div"); d.className = "dates"; d.textContent = a.dates;
+      const k2 = document.createElement("div"); k2.className = "key"; k2.textContent = a.key;
+      const acts = document.createElement("div"); acts.className = "acts";
+      const o = document.createElement("a"); o.href = a.url; o.textContent = "Открыть";
+      acts.appendChild(o);
+      [["Скопировать ссылку", a.url], ["Скопировать ключ", a.key]].forEach(([label, v]) => {
+        const c = document.createElement("button"); c.textContent = label;
+        c.onclick = async () => {
+          try { await navigator.clipboard.writeText(v); c.textContent = "Скопировано"; setTimeout(() => { c.textContent = label; }, 1500); }
+          catch (e) { prompt(label, v); }
+        };
+        acts.appendChild(c);
+      });
+      b.append(t, d, k2, acts);
+      el.append(pics, b);
+      app.appendChild(el);
+    });
+    app.hidden = false;
+    return true;
+  }
+  $("lock-form").onsubmit = async e => {
+    e.preventDefault();
+    try { await tryKey($("lock-key").value); } catch (err) { $("lock-err").textContent = "Неверный ключ"; }
+  };
+  (async () => {
+    for (const k of [fromHash, get(store)]) {
+      if (k) try { if (await tryKey(k)) return; } catch (e) {}
+    }
+    $("lock").hidden = false;
+  })();
+})();
+</script>
+</body>
+</html>

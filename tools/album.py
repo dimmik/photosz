@@ -14,14 +14,18 @@
 
 Альбом — папка, где лежит зип (или указанная папка): <альбом>/src, work, album.
 """
-import argparse, base64, glob, json, os, re, subprocess, sys, time, unicodedata, urllib.request, zipfile
+import argparse, base64, glob, json, os, re, shutil, subprocess, sys, time, unicodedata, urllib.request, zipfile
 from datetime import datetime
+
+from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.dirname(HERE)
 REPO_DIR = BASE                # корень проекта = репозиторий (см. .gitignore)
 REPO = "dimmik/photosz"
 PAGES = "https://dimmik.github.io/photosz"
+INDEX_ROOT = os.path.join(BASE, ".albums-index")   # источник индекса; вне git, как и всё с ключами
+INDEX_SLUG = "albums"
 SECTIONS = 10                  # цель — до 10 разделов
 DRAFT = 16                     # черновых разделов с запасом (слабые отсеются)
 CHUNK = 10                     # листов прохода 1 на одного Haiku-агента
@@ -219,6 +223,44 @@ def cmd_push():
                    check=True)
 
 
+def build_index():
+    """Личный индекс: все опубликованные альбомы со ссылками и ключами, под своим ключом."""
+    roots = [os.path.dirname(os.path.dirname(p)) for p in glob.glob(os.path.join(BASE, "*", "work", "publish.json"))]
+    roots += [os.path.dirname(os.path.dirname(p)) for p in glob.glob(os.path.join(BASE, "phone-index", "*", "work", "publish.json"))]
+    media = os.path.join(INDEX_ROOT, "album", "media")
+    shutil.rmtree(media, ignore_errors=True)
+    os.makedirs(media)
+    os.makedirs(os.path.join(INDEX_ROOT, "work"), exist_ok=True)
+    albums = []
+    for root in sorted(set(roots), key=lambda r: os.path.getmtime(os.path.join(r, "work", "access.key")) if os.path.exists(os.path.join(r, "work", "access.key")) else 0, reverse=True):
+        kp = os.path.join(root, "work", "access.key")
+        if os.path.abspath(root) == INDEX_ROOT or not os.path.exists(kp):
+            continue
+        a = json.load(open(os.path.join(root, "album", "album.json"), encoding="utf-8"))
+        slug = json.load(open(os.path.join(root, "work", "publish.json")))["slug"]
+        key = open(kp).read().strip()
+        src = os.path.join(root, "album", "media")
+        if a.get("chapters"):
+            ids = [a["cover"]] + [it["id"] for c in a["chapters"] for it in c["items"] if it.get("hero") and it["id"] != a["cover"]][:1]
+            files = [i + ".jpg" for i in ids]
+        else:
+            files = sorted(os.listdir(src))[:2]
+        pics = []
+        for i, f in enumerate(files):
+            name = f"{slug}_{i}.jpg"
+            with Image.open(os.path.join(src, f)) as im:
+                im = im.convert("RGB")
+                im.thumbnail((640, 640))
+                im.save(os.path.join(media, name), quality=78)
+            pics.append(name)
+        albums.append({"title": a["title"], "dates": a["dates"], "slug": slug, "key": key,
+                       "url": f"{PAGES}/{slug}/#k={key}", "pics": pics})
+    json.dump({"template": "albums.html", "title": "Все альбомы", "dates": f"{len(albums)}", "albums": albums},
+              open(os.path.join(INDEX_ROOT, "album", "album.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    subprocess.run([sys.executable, os.path.join(HERE, "publish.py"), INDEX_ROOT, "--repo", REPO_DIR, "--slug", INDEX_SLUG],
+                   check=True, capture_output=True, text=True)
+
+
 def cmd_publish(root, slug=None):
     saved = os.path.join(root, "work", "publish.json")    # slug закрепляется при первой публикации
     if not slug and os.path.exists(saved):
@@ -230,6 +272,9 @@ def cmd_publish(root, slug=None):
                          check=True, capture_output=True, text=True).stdout
     key = re.search(r"^KEY (\S+)", out, re.M).group(1)
     print(out.replace(key, "<ключ>"))
+    is_index = os.path.abspath(root) == INDEX_ROOT
+    if not is_index:                                     # индекс обновляется при каждой публикации
+        build_index()
 
     g = lambda *a, **kw: subprocess.run(["git", "-C", REPO_DIR, *a], check=True, text=True, **kw)
     if not os.path.isdir(os.path.join(REPO_DIR, ".git")):
@@ -240,7 +285,9 @@ def cmd_publish(root, slug=None):
     ign = os.path.join(REPO_DIR, ".gitignore")          # белый список: открываем папку альбома
     if f"!/{slug}/" not in open(ign).read().split():
         open(ign, "a").write(f"!/{slug}/\n")
-    g("add", "-A", "--", slug, "index.html", "robots.txt", ".nojekyll", ".gitignore")
+    if not is_index and f"!/{INDEX_SLUG}/" not in open(ign).read().split():
+        open(ign, "a").write(f"!/{INDEX_SLUG}/\n")
+    g("add", "-A", "--", slug, INDEX_SLUG, "index.html", "robots.txt", ".nojekyll", ".gitignore")
     if subprocess.run(["git", "-C", REPO_DIR, "diff", "--cached", "--quiet"]).returncode:
         g("commit", "-q", "-m", f"Publish album {slug}\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n"
           "Claude-Session: https://claude.ai/code/session_01XarAvaQnY5vkZUXThqQNei")
@@ -331,7 +378,7 @@ def cmd_status(root):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people", "name",
+    ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people", "name", "index",
                                        "suggest"])
     ap.add_argument("path", nargs="?", default=".")
     ap.add_argument("pairs", nargs="*")                  # name: G1=Даша/Dasha …
@@ -342,7 +389,7 @@ def main():
     {"prepare": lambda: cmd_prepare(a.path), "shortlist": lambda: cmd_shortlist(a.path),
      "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug),
      "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
-     "extras": lambda: cmd_extras(a.path), "people": lambda: cmd_people(a.path), "name": lambda: py("faces.py", a.path, "name", *a.pairs),
+     "extras": lambda: cmd_extras(a.path), "index": lambda: (build_index(), cmd_publish(INDEX_ROOT, INDEX_SLUG)), "people": lambda: cmd_people(a.path), "name": lambda: py("faces.py", a.path, "name", *a.pairs),
      "suggest": lambda: py("extras.py", a.path, "suggest")}[a.cmd]()
 
 
