@@ -156,7 +156,7 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
       const a = document.createElement("div");
       a.textContent = `${t.yes}: ${c("y")} · ${t.maybe}: ${c("m")}`;
       const b = document.createElement("small");
-      b.textContent = `${t.later}: ${c("l")} · ${t.no}: ${c("n")} · ${t.chosen} ${N - c("o")} ${t.of} ${N}`;
+      b.textContent = `${t.later}: ${c("l")} · ${t.no}: ${c("n")} · ${t.chosen} ${N - c("o")} ${t.of} ${A.candidates.filter(x => !x.removed).length}`;
       $("counts").append(a, b);
       $("share").textContent = t.share;
     }
@@ -176,6 +176,7 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
       app.appendChild(head);
       let sec = null;
       A.candidates.forEach((c, i) => {
+        if (c.removed) return;                         // место в ссылке остаётся, чтобы отметки не съехали
         if (c.section !== sec) {
           sec = c.section;
           const h = document.createElement("h2"); h.textContent = tx(c, "section"); app.appendChild(h);
