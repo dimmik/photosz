@@ -102,7 +102,7 @@ def main():
     signs, people = load("signs.json"), load("people.json")
     smap = load(os.path.join("extras", "signs_map.json"))
 
-    chapters, jobs = [], []
+    chapters, jobs, chapter_years = [], [], []
     for s in sections:
         key = f"s{s['n']:02d}"
         p = {**picks.get(key, {}), **overrides.get(key, {})}
@@ -159,6 +159,7 @@ def main():
             fn = photo_job if it["type"] == "photo" else video_job
             jobs.append((it, fn, src))
         t0 = datetime.fromisoformat(s["start"])
+        chapter_years.append(t0.year)
         chapters.append({"title": p.get("title", ""), "desc": p.get("desc", ""), "day": fmt_day(t0),
                          **en(p, "title"), **en(p, "desc"), "day_en": fmt_day_en(t0),
                          "time": t0.strftime("%H:%M"), "place": p.get("place") or place_label(s["place"]),
@@ -197,6 +198,12 @@ def main():
                 if land:
                     max(land, key=lambda it: it["w"] * it["h"])["hero"] = True
                     c["items"].sort(key=lambda it: (not it.get("hero"), it["time"]))
+    if t_first.year != t_last.year:                      # альбом на несколько лет: год и у дат, и у глав
+        dates = f"{fmt_day(t_first)} {t_first.year} – {fmt_day(t_last)} {t_last.year}"
+        dates_en = f"{fmt_day_en(t_first)}, {t_first.year} – {fmt_day_en(t_last)}, {t_last.year}"
+        for c, y in zip(chapters, chapter_years):
+            c["day"] += f" {y}"
+            c["day_en"] += f", {y}"
     album = {"title": a.title or picks.get("album_title") or os.path.basename(os.path.abspath(root)), "dates": dates,
              "title_en": picks.get("album_title_en") or a.title or picks.get("album_title") or "", "dates_en": dates_en,
              "cover": cover,
