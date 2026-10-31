@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Фотоальбом</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M19 50l-3 11M45 50l3 11' stroke='%232b211a' stroke-width='4.5' stroke-linecap='round'/%3E%3Crect x='21' y='5' width='15' height='10' rx='3' fill='%232b211a'/%3E%3Crect x='3' y='11' width='58' height='41' rx='11' fill='%23e8643a'/%3E%3Ccircle cx='52' cy='20' r='3.5' fill='%23ffd84a'/%3E%3Ccircle cx='31' cy='32' r='16' fill='%23fff' stroke='%232b211a' stroke-width='3.5'/%3E%3Ccircle cx='36' cy='28' r='8' fill='%232b211a'/%3E%3Ccircle cx='38.5' cy='25.5' r='2.6' fill='%23fff'/%3E%3Cpath d='M14 22q6-8 16-7' stroke='%232b211a' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f4efe6;
+  --paper-2: #ebe4d7;
+  --ink: #1d1a16;
+  --ink-2: #5d564c;
+  --ink-3: #8f877b;
+  --accent: #c2502e;
+  --rule: #d6cdbd;
+  --tile: #e2dacb;
+  --row-h: 280px;
+  --gap: 10px;
+  --serif: "Fraunces", Georgia, serif;
+  --sans: "Manrope", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15130f; --paper-2: #1d1a15; --ink: #efe8dc; --ink-2: #b3aa9b; --ink-3: #7d7569;
+    --accent: #e7774f; --rule: #332e26; --tile: #26221c;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15130f; --paper-2: #1d1a15; --ink: #efe8dc; --ink-2: #b3aa9b; --ink-3: #7d7569;
+  --accent: #e7774f; --rule: #332e26; --tile: #26221c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased; }
+img, video { display: block; max-width: 100%; }
+
+/* ── Обложка ── */
+.cover { position: relative; height: 100svh; min-height: 520px; overflow: hidden; color: #fff; }
+.cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transform: scale(1.04); animation: drift 18s ease-out forwards; }
+@keyframes drift { to { transform: scale(1); } }
+.cover::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.05) 30%, rgba(0,0,0,.65) 100%); }
+.cover-text { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0;
+  padding: 0 clamp(16px, 6vw, 88px) clamp(40px, 9vh, 96px); }
+.kicker { font: 600 12px/1 var(--sans); letter-spacing: .22em; text-transform: uppercase; opacity: .85; }
+.cover h1 { font: 400 clamp(48px, 10vw, 148px)/.92 var(--serif); font-variation-settings: "opsz" 144;
+  letter-spacing: -.02em; margin: 18px 0 20px; text-wrap: balance; }
+.cover .dates { font: italic 300 clamp(18px, 2.2vw, 26px)/1.3 var(--serif); opacity: .92; }
+.scroll-hint { position: absolute; z-index: 1; right: clamp(16px, 6vw, 88px); bottom: clamp(40px, 9vh, 96px);
+  font: 600 11px/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: #fff; opacity: .8;
+  text-decoration: none; writing-mode: vertical-rl; }
+.scroll-hint::after { content: ""; display: inline-block; width: 1px; height: 48px; background: #fff;
+  margin-top: 12px; vertical-align: top; }
+
+/* ── Оглавление ── */
+.toc { max-width: 1240px; margin: 0 auto; padding: 72px clamp(16px, 4vw, 48px) 24px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 32px; counter-reset: toc; }
+.toc li { border-top: 1px solid var(--rule); }
+.toc a { display: grid; grid-template-columns: 36px 1fr; gap: 8px; padding: 14px 0 16px;
+  color: inherit; text-decoration: none; }
+.toc a:hover .toc-title { color: var(--accent); }
+.toc-num { font: 400 15px/1.4 var(--serif); color: var(--accent); }
+.toc-title { font: 500 17px/1.35 var(--serif); transition: color .2s; }
+.toc-day { display: block; font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+
+/* ── Глава ── */
+.chapter { max-width: 1240px; margin: 0 auto; padding: 88px clamp(16px, 4vw, 48px) 0; }
+.ch-head { display: grid; grid-template-columns: auto 1fr; gap: 0 clamp(20px, 3vw, 40px);
+  align-items: end; margin-bottom: 32px; }
+.ch-num { font: 300 clamp(72px, 11vw, 152px)/.8 var(--serif); font-variation-settings: "opsz" 144;
+  color: transparent; -webkit-text-stroke: 1px var(--accent); letter-spacing: -.04em; }
+.ch-meta { font: 600 12px/1.5 var(--sans); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 10px; }
+.ch-meta span + span::before { content: "·"; margin: 0 .6em; color: var(--rule); }
+.ch-title { font: 400 clamp(30px, 4.4vw, 54px)/1.04 var(--serif); letter-spacing: -.015em; margin: 0;
+  text-wrap: balance; }
+.ch-desc { grid-column: 2; font: italic 300 clamp(17px, 1.6vw, 20px)/1.5 var(--serif); color: var(--ink-2);
+  margin: 14px 0 0; max-width: 46ch; }
+
+/* Выровненная мозаика: строки собирает JS (layout), здесь только базовый вид */
+.mosaic { display: flex; flex-direction: column; gap: var(--gap); }
+.mrow { display: flex; gap: var(--gap); justify-content: center; }
+.tile { position: relative; margin: 0; flex: none; background: var(--tile); cursor: zoom-in;
+  overflow: hidden; border-radius: 2px; }
+.tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  transition: transform .6s cubic-bezier(.2,.7,.2,1), opacity .5s; opacity: 0; }
+.tile img.loaded { opacity: 1; }
+.tile:hover img { transform: scale(1.025); }
+.tile figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 14px 11px;
+  color: #fff; font: 500 13.5px/1.35 var(--sans);
+  background: linear-gradient(transparent, rgba(0,0,0,.6)); opacity: 0; transform: translateY(6px);
+  transition: opacity .3s, transform .3s; pointer-events: none; }
+.tile:hover figcaption, .tile:focus-visible figcaption { opacity: 1; transform: none; }
+.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.play { position: absolute; z-index: 1; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px;
+  border-radius: 50%; background: rgba(255,255,255,.9); display: grid; place-items: center;
+  box-shadow: 0 6px 24px rgba(0,0,0,.25); transition: transform .3s; }
+.tile:hover .play { transform: scale(1.08); }
+.play::after { content: ""; border-left: 18px solid #1d1a16; border-top: 11px solid transparent;
+  border-bottom: 11px solid transparent; margin-left: 5px; }
+.dur { position: absolute; z-index: 1; top: 10px; right: 10px; padding: 3px 8px; border-radius: 20px;
+  background: rgba(0,0,0,.55); color: #fff; font: 600 11.5px/1.4 var(--sans); letter-spacing: .04em; }
+.fun { position: absolute; z-index: 1; top: 10px; left: 10px; padding: 3px 10px 3px 8px; border-radius: 20px;
+  background: var(--accent); color: #fff; font: 600 11px/1.4 var(--sans); letter-spacing: .08em;
+  text-transform: uppercase; }
+.fun::before { content: "✦ "; }
+.fun.info { background: rgba(20,18,15,.78); }
+.fun.info::before { content: "i  "; font-style: italic; font-family: var(--serif, serif); }
+.info-note { max-width: 70ch; margin: 2px 0 10px; font: 400 15px/1.55 var(--sans); color: var(--ink-2); }
+.info-note b { font-weight: 600; color: var(--ink); }
+@media (hover: none) {
+  .tile figcaption { opacity: 1; transform: none; font-size: 12.5px; padding-top: 22px; }
+}
+
+footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw, 48px) 56px;
+  border-top: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; color: var(--ink-3); font-size: 13px; }
+.theme-btn { background: none; border: 1px solid var(--rule); color: var(--ink-2); border-radius: 20px;
+  padding: 4px 14px; font: inherit; cursor: pointer; }
+/* кнопка «к началу» — появляется, когда альбом пролистан вниз */
+.to-top { position: fixed; z-index: 5; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--rule); background: var(--paper);
+  color: var(--ink-2); display: grid; place-items: center; padding: 0; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,.12); opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .3s, transform .3s; }
+.to-top.on { opacity: .7; transform: none; pointer-events: auto; }
+.to-top:hover, .to-top:focus-visible { opacity: 1; }
+
+/* ── Лайтбокс ── */
+.lb { position: fixed; inset: 0; z-index: 10; background: #0c0b09; display: none;
+  grid-template-rows: minmax(0, 1fr); color: #efe8dc; }
+.lb.open { display: grid; animation: fade .25s; }
+@keyframes fade { from { opacity: 0; } }
+.lb-stage { position: relative; display: grid; place-items: center; min-height: 0; overflow: hidden;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  padding: 8px clamp(8px, 5vw, 72px); touch-action: none; user-select: none; }
+.lb:fullscreen .lb-stage, .lb.bare .lb-stage { padding: 0; }
+.lb:fullscreen { background: #000; }
+.lb-stage img, .lb-stage video { max-width: 100%; max-height: 100%; min-height: 0; object-fit: contain;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5); transform-origin: center; will-change: transform; }
+/* листание: соседнее фото поверх (предыдущее) или под текущим (следующее, из глубины) */
+.lb-peek { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity; }
+.lb-peek.under { z-index: -1; opacity: 0; }
+/* переход через край альбома: черта и надпись у края, который при листании показывается первым */
+.lb-wrap { position: absolute; top: 0; bottom: 0; right: 0; opacity: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: center;
+  gap: 4px; padding: 0 68px 0 56px; color: #efe8dc; font: 400 13px/1.3 var(--sans); text-align: right;
+  text-shadow: 0 1px 6px rgba(0,0,0,.8); border-right: 3px solid #ffb547;
+  background: linear-gradient(270deg, rgba(12,11,9,.88), rgba(12,11,9,0)); }
+.lb-wrap b { font: 600 15px/1.2 var(--sans); letter-spacing: .02em; }
+.lb-peek.over { background: #0c0b09; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+.lb:fullscreen .lb-peek.over { background: #000; }
+.lb-stage img { cursor: zoom-in; -webkit-user-drag: none; }
+.lb-stage.zoomed img, .lb-stage.zoomed video { cursor: grab; box-shadow: none; }
+.lb-mini { position: absolute; z-index: 2; left: 16px; top: 44px; pointer-events: none;
+  border: 1px solid rgba(239,232,220,.6); box-shadow: 0 4px 16px rgba(0,0,0,.6); background: #000; }
+.lb-mini[hidden] { display: none; }
+.lb-mini img { width: 100%; height: 100%; object-fit: fill; opacity: .75; }
+.lb-mini i { position: absolute; min-width: 3px; min-height: 3px; border: 2px solid #ffb547;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.6); box-sizing: border-box; transform: translate(-1px, -1px); }
+.lb-zoom { position: absolute; z-index: 2; top: 10px; right: 56px; display: flex; gap: 2px; }
+/* подпись — поверх фото на прозрачном градиенте; тап/клик по фото прячет её и все кнопки */
+.lb-cap, .lb button, .lb-count, .lb-zoom { transition: opacity .25s; }
+.lb .lb-zoom button[hidden] { display: none; }
+.lb.bare .lb-cap, .lb.bare button, .lb.bare .lb-count, .lb.bare .lb-zoom { opacity: 0 !important; pointer-events: none; }
+.lb .lb-zoom button { position: static; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; font: 400 26px/1 var(--sans) !important; }
+.lb-cap { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; pointer-events: none;
+  padding: 36px clamp(16px, 6vw, 88px) 16px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline;
+  justify-content: center; text-align: center; background: linear-gradient(transparent, rgba(0,0,0,.6));
+  text-shadow: 0 1px 3px rgba(0,0,0,.7); max-height: 45%; overflow: hidden; }
+.lb-cap b { font: italic 400 19px/1.4 var(--serif); }
+.lb-cap small { color: #c9c0b2; font-size: 13px; white-space: nowrap; }
+@media (max-width: 720px), (max-height: 500px) { .lb-cap b { font-size: 16px; } .lb-cap { padding-bottom: 10px; } }
+.lb button { position: absolute; z-index: 2; background: none; border: 0; color: #efe8dc; cursor: pointer;
+  font: 300 34px/1 var(--sans); padding: 16px; opacity: .75; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+.lb button:hover { opacity: 1; }
+.lb-close { top: 4px; right: 8px; }
+.lb-prev, .lb-next { top: 50%; transform: translateY(-50%); font-size: 44px !important; }
+.lb-prev { left: 4px; } .lb-next { right: 4px; }
+.lb-count { position: absolute; top: 20px; left: 24px; font: 600 12px/1 var(--sans); letter-spacing: .14em;
+  color: #c9c0b2; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+
+.lang-pill { position: absolute; z-index: 2; top: 18px; right: clamp(16px, 4vw, 48px); padding: 6px 14px;
+  border: 1px solid rgba(255,255,255,.55); border-radius: 20px; background: rgba(0,0,0,.25); color: #fff;
+  font: 600 12px/1 var(--sans); letter-spacing: .12em; cursor: pointer; backdrop-filter: blur(4px); }
+.lang-pill:hover { background: rgba(0,0,0,.45); }
+.lock-lang { margin-top: 18px; background: none; border: 1px solid var(--rule); color: var(--ink-2); border-radius: 20px;
+  padding: 4px 14px; font: 600 12px/1.4 var(--sans); letter-spacing: .12em; cursor: pointer; }
+
+/* ── Экран ключа ── */
+.lock { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px;
+  background: var(--paper); }
+.lock[hidden] { display: none; }
+.lock-box { width: min(420px, 100%); text-align: center; }
+.lock-box .kicker { color: var(--accent); }
+.lock-box h1 { font: 400 clamp(34px, 6vw, 48px)/1.05 var(--serif); margin: 14px 0 8px; }
+.lock-box p { color: var(--ink-2); margin: 0 0 24px; }
+.lock-box input { width: 100%; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 4px;
+  background: var(--paper-2); color: var(--ink); font: 500 18px/1 ui-monospace, monospace; letter-spacing: .08em;
+  text-align: center; }
+.lock-box input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lock-box button { margin-top: 12px; width: 100%; padding: 13px; border: 0; border-radius: 4px; cursor: pointer;
+  background: var(--ink); color: var(--paper); font: 600 15px/1 var(--sans); letter-spacing: .04em; }
+.lock-err { min-height: 22px; margin-top: 12px; color: var(--accent); font-size: 14px; }
+.lb-toast { position: absolute; z-index: 3; left: 50%; top: 64px; transform: translateX(-50%); padding: 8px 16px;
+  border-radius: 20px; background: rgba(239,232,220,.95); color: #1d1a16; font: 600 13px/1.3 var(--sans);
+  pointer-events: none; opacity: 0; transition: opacity .25s; }
+.lb-toast.on { opacity: 1; }
+.lb-wait { color: #8f877b; font: italic 300 18px/1 var(--serif); }
+
+@media (max-width: 720px) {
+  :root { --gap: 6px; }
+  .chapter { padding-top: 64px; }
+  .ch-head { grid-template-columns: 1fr; }
+  .ch-num { font-size: 64px; margin-bottom: 10px; }
+  .ch-desc { grid-column: 1; }
+  .lb-prev, .lb-next { display: none; }
+  .scroll-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<button class="to-top" id="to-top" aria-label="↑"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14V4M4.5 8.5 9 4l4.5 4.5"/></svg></button>
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Просмотр">
+  <div class="lb-stage" id="lb-stage"></div>
+  <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
+  <span class="lb-count" id="lb-count"></span>
+  <div class="lb-mini" id="lb-mini" hidden><img alt=""><i></i></div>
+  <button class="lb-close" id="lb-close" aria-label="Закрыть">×</button>
+  <div class="lb-zoom"><button id="lb-link" aria-label="Link"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1"/></svg></button><button id="lb-fs" aria-label="Fullscreen" hidden><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5"/></svg></button><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
+  <button class="lb-prev" id="lb-prev" aria-label="Назад">‹</button>
+  <button class="lb-next" id="lb-next" aria-label="Вперёд">›</button>
+</div>
+<div class="lock" id="lock" hidden>
+  <form class="lock-box" id="lock-form" autocomplete="off">
+    <div class="kicker" id="lock-kicker">Фотоальбом</div>
+    <h1 id="lock-title">Закрытый альбом</h1>
+    <p id="lock-text">Введите ключ доступа.</p>
+    <input id="lock-key" type="text" spellcheck="false" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX" aria-label="Ключ">
+    <button type="submit" id="lock-btn">Открыть</button>
+    <button type="button" class="lock-lang" id="lock-lang">EN</button>
+    <div class="lock-err" id="lock-err"></div>
+  </form>
+</div>
+<script id="cfg" type="application/json">{"mode": "enc", "salt": "DJkxU4A7xtqXoObEkWmI3A==", "iter": 250000, "album": "3e22bd51d9e50420e2b5.bin"}</script>
+<script>
+(function () {
+  const CFG = JSON.parse(document.getElementById("cfg").textContent);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const pad = n => String(n).padStart(2, "0");
+  const dur = s => Math.floor(s / 60) + ":" + pad(Math.round(s % 60));
+  const HASH = new URLSearchParams(location.hash.slice(1));
+
+  // ── язык: из ссылки (#l=en), иначе сохранённый, иначе язык браузера ──
+  const I18N = {
+    ru: {album: "Фотоальбом", chapters: n => n + " " + (n % 10 === 1 && n % 100 !== 11 ? "глава" :
+          n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "главы" : "глав"),
+         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:", top: "К началу",
+         wrapEnd: "Конец альбома", wrapEndSub: "дальше — с начала", wrapStart: "Начало альбома", wrapStartSub: "дальше — с конца",
+         toStart: "Снова с начала альбома", toEnd: "Последнее фото альбома",
+         lockTitle: "Закрытый альбом", lockText: "Введите ключ доступа.", open: "Открыть",
+         badKey: "Ключ не подходит", failed: "Не удалось загрузить альбом", other: "EN", lang: "ru"},
+    en: {album: "Photo album", chapters: n => n + (n === 1 ? " chapter" : " chapters"),
+         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", copied: "Link to this photo copied", copyFail: "Copy the link:", top: "Back to top",
+         wrapEnd: "End of the album", wrapEndSub: "next — back to the start", wrapStart: "Start of the album", wrapStartSub: "next — the last photo",
+         toStart: "Back to the start of the album", toEnd: "Last photo of the album",
+         lockTitle: "Private album", lockText: "Enter the access key.", open: "Open",
+         badKey: "Wrong key", failed: "Could not load the album", other: "RU", lang: "en"},
+  };
+  let L = HASH.get("l");
+  try { L = L || localStorage.getItem("lang"); } catch (e) {}
+  L = I18N[L] ? L : ((navigator.language || "").toLowerCase().startsWith("ru") ? "ru" : "en");
+  let T = I18N[L];
+  const tx = (o, f) => (L === "en" && o[f + "_en"]) || o[f] || "";
+  function setLang(l) {
+    L = l; T = I18N[l]; document.documentElement.lang = l;
+    try { localStorage.setItem("lang", l); } catch (e) {}
+  }
+  setLang(L);
+
+  // ── источник медиа: url(имя) → Promise<URL>. Открытый режим — файлы как есть; закрытый — расшифровка ──
+  if (CFG.mode === "plain") render(CFG.album, n => Promise.resolve("media/" + n));
+  else unlockFlow();
+
+  function unlockFlow() {
+    const lock = document.getElementById("lock"), err = document.getElementById("lock-err");
+    const lockTexts = () => {
+      [["lock-kicker", T.album], ["lock-title", T.lockTitle], ["lock-text", T.lockText], ["lock-btn", T.open],
+       ["lock-lang", T.other]].forEach(([id, v]) => { document.getElementById(id).textContent = v; });
+      err.textContent = "";
+    };
+    lockTexts();
+    document.getElementById("lock-lang").onclick = () => { setLang(L === "ru" ? "en" : "ru"); lockTexts(); };
+    const norm = k => (k || "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+    const store = "albumkey:" + location.pathname;
+    async function tryKey(k, quiet) {
+      try {
+        const enc = new TextEncoder();
+        const base = await crypto.subtle.importKey("raw", enc.encode(norm(k)), "PBKDF2", false, ["deriveKey"]);
+        const key = await crypto.subtle.deriveKey(
+          {name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(atob(CFG.salt), c => c.charCodeAt(0)), iterations: CFG.iter},
+          base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
+        const dec = async file => {
+          const r = await fetch("data/" + file);
+          if (!r.ok) throw new Error("fetch " + r.status);
+          const buf = new Uint8Array(await r.arrayBuffer());
+          return crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(0, 12)}, key, buf.slice(12));
+        };
+        const album = JSON.parse(new TextDecoder().decode(await dec(CFG.album)));
+        try { localStorage.setItem(store, norm(k)); } catch (e) {}
+        lock.hidden = true;
+        const cache = {};
+        const types = {jpg: "image/jpeg", mp4: "video/mp4"};
+        render(album, n => cache[n] || (cache[n] = dec(album.files[n]).then(b =>
+          URL.createObjectURL(new Blob([b], {type: types[n.split(".").pop()]})))), norm(k).match(/.{1,4}/g).join("-"));
+        return true;
+      } catch (e) {
+        if (!quiet) err.textContent = e.name === "OperationError" ? T.badKey : T.failed;
+        return false;
+      }
+    }
+    const fromHash = HASH.get("k");
+    let saved = null; try { saved = localStorage.getItem(store); } catch (e) {}
+    // ключ из ссылки сразу убираем из адресной строки: скопированный адрес его уже не содержит
+    // (ссылка на конкретное фото #p=… остаётся)
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search + (HASH.get("p") ? "#p=" + HASH.get("p") : ""));
+    (async () => {
+      if (fromHash && await tryKey(fromHash, true)) return;
+      if (saved && await tryKey(saved, true)) return;
+      lock.hidden = false;
+      document.getElementById("lock-key").focus();
+    })();
+    document.getElementById("lock-form").addEventListener("submit", e => {
+      e.preventDefault(); err.textContent = "…"; tryKey(document.getElementById("lock-key").value);
+    });
+  }
+
+  function render(A, url, KEY) {
+  const flat = [];
+  const app = document.getElementById("app");
+  function draw() {
+  flat.length = 0;
+  document.title = tx(A, "title");
+  const tt = document.getElementById("to-top"); tt.title = T.top; tt.setAttribute("aria-label", T.top);
+  let h = `<header class="cover">
+    <button class="lang-pill" data-act="lang">${T.other}</button>
+    <img data-name="${A.cover}.jpg" alt="">
+    <div class="cover-text">
+      <div class="kicker">${T.album} · ${T.chapters(A.chapters.length)}</div>
+      <h1>${esc(tx(A, "title"))}</h1>
+      <div class="dates">${esc(tx(A, "dates"))}</div>
+    </div>
+    <a class="scroll-hint" href="#toc">${T.scroll}</a>
+  </header>
+  <nav class="toc" id="toc"><ol>${A.chapters.map((c, i) => `
+    <li><a href="#ch${i + 1}"><span class="toc-num">${pad(i + 1)}</span>
+      <span><span class="toc-title">${esc(tx(c, "title"))}</span><span class="toc-day">${esc(tx(c, "day"))}</span></span></a></li>`).join("")}
+  </ol></nav>`;
+
+  A.chapters.forEach((c, ci) => {
+    h += `<section class="chapter" id="ch${ci + 1}">
+      <div class="ch-head">
+        <div class="ch-num">${pad(ci + 1)}</div>
+        <div>
+          <div class="ch-meta"><span>${esc(tx(c, "day"))}</span><span>${esc(c.time)}</span>${c.place ? `<span>${esc(tx(c, "place"))}</span>` : ""}</div>
+          <h2 class="ch-title">${esc(tx(c, "title"))}</h2>
+        </div>
+        ${c.desc ? `<p class="ch-desc">${esc(tx(c, "desc"))}</p>` : ""}
+      </div>
+      <div class="mosaic">`;
+    c.items.forEach(it => {
+      const k = flat.push({...it, chapter: c}) - 1;
+      const ar = (it.w / it.h).toFixed(3);
+      const isV = it.type === "video";
+      // превью; для крупных плиток (герой) — полноразмерный файл
+      const names = isV ? `data-name="${it.id}_p.jpg"` : `data-name="${it.id}_t.jpg" data-full="${it.id}.jpg"`;
+      h += `<figure class="tile${it.hero ? " hero" : ""}" data-ar="${ar}" tabindex="0" data-k="${k}"${it.series ? ` data-series="${it.series}"` : ""}>
+        <img ${names} alt="${esc(tx(it, "caption"))}" decoding="async">
+        ${isV ? `<span class="play"></span><span class="dur">${dur(it.duration)}</span>` : ""}
+        ${it.info && !it.sidx ? `<span class="fun info">${T.info}</span>` : ""}
+        ${it.fun && !it.sidx ? `<span class="fun">${it.series ? T.series : T.moment}</span>` : ""}
+        ${it.caption && !it.sidx ? `<figcaption>${esc(tx(it, "caption"))}</figcaption>` : ""}
+      </figure>`;
+    });
+    h += `</div></section>`;
+  });
+  h += `<footer><span>${esc(tx(A, "title"))} · ${esc(tx(A, "dates"))}</span>
+    <span><button class="theme-btn" data-act="lang">${T.other}</button>
+    <button class="theme-btn" data-act="theme">${T.theme}</button></span></footer>`;
+  app.innerHTML = h;
+  }
+  draw();
+
+  // ── выровненные строки: плитки в строке одной высоты и вместе заполняют ширину ──
+  function layout() {
+    const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gap")) || 10;
+    document.querySelectorAll(".mosaic").forEach(m => {
+      const W = m.clientWidth;
+      const target = W < 600 ? W / 1.6 : Math.max(240, Math.min(360, W / 3.6));
+      const tiles = [...m.querySelectorAll(".tile")];
+      const rows = []; let row = [], sum = 0, pend = [];
+      tiles.forEach(t => {
+        const ar = +t.dataset.ar;
+        // герой — отдельной строкой во всю ширину (высота ограничена, лишнее обрезается)
+        if (t.classList.contains("hero")) {
+          if (row.length) { rows.push([row, sum]); row = []; sum = 0; }
+          rows.push([[t], Math.max(ar, W / Math.min(innerHeight * 0.78, W / 1.2)), false, true]);
+          return;
+        }
+        // серия — все её кадры одной строкой; ждёт, пока закроется текущая строка
+        if (t.dataset.series) {
+          const list = row.length ? pend : rows, last = list[list.length - 1];
+          if (last && last[4] === t.dataset.series) { last[0].push(t); last[1] += ar; }
+          else list.push([[t], ar, false, true, t.dataset.series]);
+          return;
+        }
+        row.push(t); sum += ar;
+        if (sum * target + gap * (row.length - 1) >= W) { rows.push([row, sum]); row = []; sum = 0; rows.push(...pend); pend = []; }
+      });
+      if (row.length) {
+        // хвост: если он почти полный — растягиваем, иначе оставляем целевую высоту
+        const fill = (sum * target + gap * (row.length - 1)) / W;
+        if (fill < 0.45 && rows.length && !rows[rows.length - 1][3]) { const last = rows.pop(); rows.push([last[0].concat(row), last[1] + sum]); }
+        else rows.push([row, sum, true]);
+      }
+      rows.push(...pend);
+      m.textContent = "";
+      rows.forEach(([r, s, short]) => {
+        // неполный хвост растягиваем, но не выше 1.8 × целевой высоты
+        let hgt = short ? Math.min((W - gap * (r.length - 1)) / s, target * 1.3) : (W - gap * (r.length - 1)) / s;
+        if (r[0].dataset.series) hgt = Math.min(hgt, target * 1.5);       // серия из вертикальных кадров не раздувается
+        if (r.length === 1 && r[0].dataset.series && r[0].dataset.series.startsWith("info")) hgt = Math.min(hgt, target * 1.15);   // табличка без снимков объекта
+        const div = document.createElement("div"); div.className = "mrow";
+        r.forEach(t => {
+          const w = r.length === 1 && !short && !t.dataset.series ? W : Math.min(W, hgt * t.dataset.ar);
+          t.style.width = w + "px"; t.style.height = hgt + "px";
+          div.appendChild(t);
+        });
+        m.appendChild(div);
+        // текст таблички — под её строкой
+        const it = flat[+r[0].dataset.k];
+        if (it.note) {
+          const p = document.createElement("p"); p.className = "info-note";
+          p.innerHTML = `<b>${esc(tx(it, "caption"))}.</b> ${esc(tx(it, "note"))}`;
+          m.appendChild(p);
+        }
+      });
+    });
+  }
+  layout();
+  let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(layout, 120); });
+
+  // «к началу»: видна, когда пролистано больше двух экранов
+  const top = document.getElementById("to-top");
+  const topVis = () => top.classList.toggle("on", scrollY > 2 * innerHeight);
+  addEventListener("scroll", topVis, {passive: true}); topVis();
+  top.onclick = () => scrollTo({top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+
+  // ── ленивая загрузка: картинка получает адрес, когда плитка подходит к экрану ──
+  function load(img) {
+    const big = img.dataset.full && img.parentElement.clientWidth * (devicePixelRatio || 1) > 900;
+    url(big ? img.dataset.full : img.dataset.name).then(u => {
+      img.addEventListener("load", () => img.classList.add("loaded"), {once: true});
+      img.src = u;
+    });
+  }
+  const io = "IntersectionObserver" in window && new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { io.unobserve(e.target); load(e.target); }
+  }), {rootMargin: "800px 0px"});
+  const observe = () => document.querySelectorAll("img[data-name]").forEach(img => io ? io.observe(img) : load(img));
+  observe();
+  function redraw() {
+    const y = scrollY;
+    if (io) io.disconnect();
+    draw(); layout(); observe();
+    scrollTo(0, y);
+  }
+
+  // тема: авто → тёмная → светлая; выбор запоминается (если хранилище доступно)
+  const root = document.documentElement;
+  try { const t = localStorage.getItem("theme"); if (t) root.dataset.theme = t; } catch (e) {}
+  const toggleTheme = () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+  };
+
+  // ── лайтбокс ──
+  const lb = document.getElementById("lb"), stage = document.getElementById("lb-stage");
+  let cur = -1;
+  function show(k, held) {                              // held — превью от листания, убираем, когда новое готово
+    if (cur >= 0 && (k >= flat.length || k < 0)) setTimeout(() => say(k < 0 ? T.toEnd : T.toStart));
+    cur = (k + flat.length) % flat.length;
+    const drop = () => held && held.remove();
+    if (held) setTimeout(drop, 4000);
+    const it = flat[cur], my = cur;
+    stage.innerHTML = `<div class="lb-wait">${T.loading}</div>`;
+    zoom(1);
+    const isV = it.type === "video";
+    Promise.all([url(it.id + (isV ? ".mp4" : ".jpg")), isV ? url(it.id + "_p.jpg") : null]).then(([u, p]) => {
+      if (my !== cur || !lb.classList.contains("open")) return drop();
+      stage.innerHTML = isV
+        ? `<video src="${u}" poster="${p}" controls autoplay loop playsinline></video>`
+        : `<img src="${u}" alt="${esc(tx(it, "caption"))}" draggable="false">`;
+      zoom(1);
+      const nm = media();
+      if (nm.tagName === "IMG" && !nm.complete) nm.onload = nm.onerror = drop; else drop();
+    });
+    document.getElementById("lb-cap").textContent = tx(it, "caption") + (it.note ? ". " + tx(it, "note") : "");
+    document.getElementById("lb-sub").textContent = `${tx(it.chapter, "day")}, ${it.time}`;
+    document.getElementById("lb-count").textContent = `${cur + 1} / ${flat.length}`;
+    // заранее готовим соседние фото
+    [cur + 1, cur - 1].forEach(j => { const n = flat[(j + flat.length) % flat.length];
+      if (n.type === "photo") url(n.id + ".jpg").then(u => { new Image().src = u; }); });
+  }
+  // история: открытие фото — новая запись (#p=<id>, можно ссылаться), листание её заменяет,
+  // поэтому «Назад» в браузере закрывает просмотр и возвращает к альбому, а не уводит со страницы
+  const here = location.pathname + location.search;
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  const mark = () => history.replaceState({lb: 1}, "", here + "#p=" + flat[cur].id);
+  function openLb(k) { lb.classList.add("open"); document.body.style.overflow = "hidden"; show(k); }
+  function open(k) { history.pushState({lb: 1}, "", here + "#p=" + flat[k].id); openLb(k); }
+  function closeLb() {
+    if (!lb.classList.contains("open")) return;
+    lb.classList.remove("open"); stage.innerHTML = ""; document.body.style.overflow = "";
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    // вернуться в список к той фотке, которую смотрели (браузер сам прокрутку не восстанавливает —
+    // scrollRestoration = manual; повтор через 300 мс — после выхода из полноэкранного и перестройки рядов)
+    const k = cur, go = () => {
+      const t = document.querySelector(`.tile[data-k="${k}"]`); if (!t) return;
+      const r = t.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight) t.scrollIntoView({block: "center"});
+      t.focus({preventScroll: true});
+    };
+    requestAnimationFrame(go); setTimeout(go, 300);
+  }
+  function close() {
+    if (history.state && history.state.lb) history.back();      // закроется в popstate
+    else { history.replaceState(null, "", here); closeLb(); }
+  }
+  function fromUrl(first) {
+    const id = new URLSearchParams(location.hash.slice(1)).get("p");
+    const k = id ? flat.findIndex(it => it.id === id) : -1;
+    if (k < 0) { closeLb(); return; }
+    if (first) {                                     // пришли по ссылке на фото: под ним — сам альбом
+      history.replaceState(null, "", here);
+      history.pushState({lb: 1}, "", here + "#p=" + id);
+    }
+    lb.classList.contains("open") ? show(k) : openLb(k);
+  }
+  addEventListener("popstate", () => fromUrl(false));
+
+  // ссылка на текущее фото — сразу с ключом (у получателя ключ может быть не сохранён)
+  const toast = document.createElement("div"); toast.className = "lb-toast"; lb.appendChild(toast);
+  let toastT;
+  const say = t => { toast.textContent = t; toast.classList.add("on"); clearTimeout(toastT);
+    toastT = setTimeout(() => toast.classList.remove("on"), 2200); };
+  document.getElementById("lb-link").onclick = async () => {
+    const it = flat[cur];
+    const link = location.origin + here + "#" + (KEY ? "k=" + KEY + "&" : "") + "p=" + encodeURIComponent(it.id) +
+      (L === "en" ? "&l=en" : "");
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {   // телефон — системное «Поделиться»
+      try { await navigator.share({title: tx(it, "caption") || tx(A, "title"), url: link}); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    try { await navigator.clipboard.writeText(link); say(T.copied); }
+    catch (e) { prompt(T.copyFail, link); }
+  };
+  app.addEventListener("click", e => {
+    const act = e.target.closest("[data-act]");
+    if (act) { if (act.dataset.act === "theme") toggleTheme(); else { setLang(L === "ru" ? "en" : "ru"); redraw(); } return; }
+    const t = e.target.closest(".tile"); if (t) open(+t.dataset.k);
+  });
+  document.getElementById("app").addEventListener("keydown", e => {
+    const t = e.target.closest(".tile"); if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(+t.dataset.k); }
+  });
+  document.getElementById("lb-close").onclick = close;
+  document.getElementById("lb-prev").onclick = () => { show(cur - 1); mark(); };
+  document.getElementById("lb-next").onclick = () => { show(cur + 1); mark(); };
+  addEventListener("keydown", e => {
+    if (!lb.classList.contains("open")) return;
+    if (e.key === "Escape") close();
+    else if (e.key === "ArrowRight") { show(cur + 1); mark(); }
+    else if (e.key === "ArrowLeft") { show(cur - 1); mark(); }
+    else if (e.key === "+" || e.key === "=") zoomAt(zs * 1.5);
+    else if (e.key === "-") zoomAt(zs / 1.5);
+    else if (e.key === "0") zoom(1);
+  });
+
+  // ── зум в полноэкранном режиме: колесо, щипок, двойной клик/тап, кнопки ± и клавиши; при увеличении — перетаскивание ──
+  let zs = 1, zx = 0, zy = 0;
+  const ZMIN = 0.1, ZMAX = 500, MINI = 10;          // меньше 1 — фото мельче экрана; с ×10 — миниатюра
+  const media = () => stage.querySelector("img, video");
+  function zoom(s, x = 0, y = 0) {
+    const m = media();
+    zs = Math.min(ZMAX, Math.max(ZMIN, s));
+    if (Math.abs(zs - 1) < 0.04) zs = 1;            // прилипает к «целиком»
+    if (zs <= 1) { x = y = 0; }                       // мельче экрана — всегда по центру
+    if (m) {                                          // не даём картинке уехать за край
+      const bx = Math.max(0, m.offsetWidth * (zs - 1) / 2), by = Math.max(0, m.offsetHeight * (zs - 1) / 2);
+      zx = Math.max(-bx, Math.min(bx, x)); zy = Math.max(-by, Math.min(by, y));
+      m.style.transform = zs === 1 ? "" : `translate(${zx}px, ${zy}px) scale(${zs})`;
+    }
+    stage.classList.toggle("zoomed", zs > 1);
+    mini(m);
+  }
+  // миниатюра с рамкой «где мы сейчас» — при сильном увеличении
+  const mm = document.getElementById("lb-mini"), mmImg = mm.querySelector("img"), mmBox = mm.querySelector("i");
+  function mini(m) {
+    if (!m || zs < MINI) { mm.hidden = true; return; }
+    const src = m.tagName === "VIDEO" ? m.poster : m.src;
+    if (mmImg.getAttribute("src") !== src) mmImg.src = src;
+    const W = m.offsetWidth, H = m.offsetHeight, a = W / H, S = 140;
+    mm.style.width = (a >= 1 ? S : S * a) + "px"; mm.style.height = (a >= 1 ? S / a : S) + "px";
+    const cx = m.offsetLeft + W / 2, cy = m.offsetTop + H / 2;
+    const f = (v, c, z, L) => Math.max(0, Math.min(1, (v - c - z) / zs / L + 0.5));   // экран → доля фото
+    const x0 = f(0, cx, zx, W), x1 = f(stage.clientWidth, cx, zx, W);
+    const y0 = f(0, cy, zy, H), y1 = f(stage.clientHeight, cy, zy, H);
+    Object.assign(mmBox.style, {left: x0 * 100 + "%", top: y0 * 100 + "%",
+      width: (x1 - x0) * 100 + "%", height: (y1 - y0) * 100 + "%"});
+    mm.hidden = false;
+  }
+  function zoomAt(s, px, py) {                        // точка (px, py) экрана остаётся на месте
+    const m = media(); if (!m) return;
+    const r = stage.getBoundingClientRect();         // центр без учёта transform
+    const cx = r.left + m.offsetLeft + m.offsetWidth / 2, cy = r.top + m.offsetTop + m.offsetHeight / 2;
+    if (px === undefined) { px = cx; py = cy; }         // кнопки и клавиши — вокруг центра экрана
+    const k = Math.min(ZMAX, Math.max(ZMIN, s)) / zs;
+    zoom(zs * k, (px - cx) - k * (px - cx - zx), (py - cy) - k * (py - cy - zy));
+  }
+  document.getElementById("lb-in").onclick = () => zoomAt(zs * 1.5);
+  document.getElementById("lb-out").onclick = () => zoomAt(zs / 1.5);
+  stage.addEventListener("wheel", e => {
+    if (!media()) return;
+    e.preventDefault();
+    zoomAt(zs * Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015)), e.clientX, e.clientY);
+  }, {passive: false});
+  // одиночный тап/клик по фото или фону — спрятать/показать подпись и кнопки (ждём, не будет ли второго);
+  // закрывают только × , Esc и «Назад»
+  let uiT = null;
+  const tapUi = () => { clearTimeout(uiT); uiT = setTimeout(() => lb.classList.toggle("bare"), 300); };
+  stage.addEventListener("click", e => { if ((e.target.tagName === "IMG" || e.target === stage) && !moved && lastType === "mouse") tapUi(); });
+  // настоящий полноэкранный режим (нет на iPhone — там кнопки не будет)
+  const fsBtn = document.getElementById("lb-fs");
+  fsBtn.hidden = !document.fullscreenEnabled;
+  fsBtn.onclick = () => document.fullscreenElement ? document.exitFullscreen() : lb.requestFullscreen().catch(() => {});
+  addEventListener("keydown", e => { if (lb.classList.contains("open") && (e.key === "f" || e.key === "а")) fsBtn.click(); });
+  stage.addEventListener("dblclick", e => {
+    clearTimeout(uiT);
+    if (e.target.tagName === "IMG" && lastType === "mouse") zoomAt(zs !== 1 ? 1 : 2.5, e.clientX, e.clientY);
+  });
+  const pts = new Map(); let g0 = null, s0 = null, tap = 0, moved = false, lastType = "mouse";
+  // листание как в Telegram: вправо — предыдущее выезжает слева поверх текущего, влево — текущее
+  // уезжает, а следующее проступает из глубины. Отпустил раньше 30% ширины — всё возвращается.
+  // Увеличенное фото сначала двигается само; листание начинается, когда его тянут дальше края.
+  let sw = 0, swPrev = 0, swT = 0, swV = 0, axis = "", peek = null, busy = false;
+  const TR = "transform .22s ease-out, opacity .22s ease-out";
+  const base = () => zs === 1 ? "" : `translate(${zx}px, ${zy}px) scale(${zs})`;
+  function dropPeek() { if (peek) { peek.el.remove(); if (peek.tag) peek.tag.remove(); peek = null; } }
+  function peekFor(dir) {                               // dir: -1 предыдущее, 1 следующее
+    if (peek && peek.dir === dir) return peek;
+    dropPeek();
+    const n = flat[(cur + dir + flat.length) % flat.length];
+    const el = document.createElement("div"), im = document.createElement("img");
+    el.className = "lb-stage lb-peek " + (dir < 0 ? "over" : "under");
+    im.alt = ""; im.draggable = false; el.appendChild(im);
+    const k = cur + dir;
+    let tag = null;
+    if (k < 0 || k >= flat.length) {                    // переход через край альбома — даём понять
+      const end = k >= flat.length;
+      tag = document.createElement("div");
+      tag.className = "lb-wrap";
+      tag.innerHTML = `<b>${end ? T.wrapEnd : T.wrapStart}</b><span>${end ? T.wrapEndSub : T.wrapStartSub} ${end ? "↺" : "↻"}</span>`;
+    }
+    let full = false;                                   // сначала превью, полный файл — как будет готов
+    url(n.id + (n.type === "video" ? "_p.jpg" : "_t.jpg")).then(u => { if (!full) im.src = u; });
+    if (n.type === "photo") url(n.id + ".jpg").then(u => { full = true; im.src = u; });
+    stage.after(el);
+    if (tag) el.after(tag);
+    return peek = {el, dir, tag};
+  }
+  function paint(dx) {
+    const m = media(), w = stage.clientWidth, p = Math.min(1, Math.abs(dx) / w);
+    if (dx && peekFor(dx > 0 ? -1 : 1).tag) peek.tag.style.opacity = Math.min(1, p * 3);
+    if (dx > 0) {
+      peekFor(-1).el.style.transform = `translateX(${dx - w}px)`;
+      if (m) { m.style.transform = base(); m.style.opacity = 1 - p * 0.4; }
+    } else if (dx < 0) {
+      const pk = peekFor(1).el;
+      pk.style.transform = `scale(${0.85 + 0.15 * p})`; pk.style.opacity = p;
+      if (m) { m.style.transform = `translateX(${dx}px) ` + base(); m.style.opacity = ""; }
+    } else {
+      dropPeek();
+      if (m) { m.style.transform = base(); m.style.opacity = ""; }
+    }
+  }
+  function finish(go) {
+    const dir = sw > 0 ? -1 : 1, w = stage.clientWidth, pk = peek && peek.el, m = media();
+    if (peek && peek.tag) { peek.tag.style.transition = "opacity .2s"; peek.tag.style.opacity = 0; setTimeout(t => t.remove(), 230, peek.tag); peek.tag = null; }
+    sw = 0; busy = true;
+    [pk, m].forEach(x => x && (x.style.transition = TR));
+    if (go && pk) {
+      if (dir < 0) pk.style.transform = "translateX(0)";
+      else { pk.style.transform = "scale(1)"; pk.style.opacity = 1; if (m) m.style.transform = `translateX(${-w}px) ` + base(); }
+      setTimeout(() => {
+        busy = false; peek = null;
+        pk.className = "lb-stage lb-peek over"; pk.style.transition = "";
+        show(cur + dir, pk); mark();                    // превью держится, пока не загрузится новое фото
+      }, 230);
+    } else {
+      if (pk) { if (dir < 0) pk.style.transform = `translateX(${-w}px)`; else { pk.style.transform = "scale(.85)"; pk.style.opacity = 0; } }
+      if (m) { m.style.transform = base(); m.style.opacity = ""; }
+      setTimeout(() => { busy = false; dropPeek(); if (m) m.style.transition = ""; }, 230);
+    }
+  }
+  const gesture = () => {
+    const [a, b] = [...pts.values()];
+    return b ? {d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}
+             : {d: 0, x: a.x, y: a.y};
+  };
+  stage.addEventListener("pointerdown", e => {
+    if (e.target.closest("button") || busy) return;
+    // у видео нижняя полоса — элементы управления, их не перехватываем
+    if (e.target.tagName === "VIDEO" && e.offsetY > e.target.clientHeight - 56 && pts.size === 0) return;
+    lastType = e.pointerType;
+    pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    g0 = {...gesture(), s: zs, zx, zy};
+    if (pts.size === 1) { s0 = {x: e.clientX, y: e.clientY, s: zs}; moved = false; axis = ""; } else s0 = null;
+    sw = swPrev = swV = 0; swT = performance.now();
+  });
+  stage.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId) || !g0) return;
+    pts.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    const g = gesture();
+    if (s0 && Math.hypot(e.clientX - s0.x, e.clientY - s0.y) > 10) moved = true;
+    if (pts.size === 2 && g0.d) {                     // щипок
+      if (sw) { sw = 0; paint(0); }
+      zs = g0.s; zx = g0.zx; zy = g0.zy;
+      zoomAt(g0.s * g.d / g0.d, g0.x, g0.y);
+      zoom(zs, zx + g.x - g0.x, zy + g.y - g0.y);
+    } else if (pts.size === 1 && s0) {
+      const dx = g.x - g0.x, dy = g.y - g0.y;
+      if (zs > 1) {                                   // увеличенное: двигаем, а за краем — листаем
+        const want = g0.zx + dx;
+        zoom(zs, want, g0.zy + dy);
+        sw = want - zx;
+        paint(sw);
+      } else {
+        if (!axis && moved) axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+        if (axis === "x") { sw = dx; paint(sw); }
+      }
+      const now = performance.now();
+      if (now > swT) { swV = (sw - swPrev) / (now - swT); swPrev = sw; swT = now; }
+    }
+  });
+  const up = e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size === 0 && sw) {                       // отпустили: дальше 30% или быстрый взмах — листаем
+      const fast = performance.now() - swT < 100 && Math.abs(swV) > 0.9 &&
+                   Math.sign(swV) === Math.sign(sw) && Math.abs(sw) > 40;
+      finish(Math.abs(sw) >= 0.3 * stage.clientWidth || fast);
+      s0 = null; g0 = null; axis = "";
+      return;
+    }
+    if (pts.size === 0 && s0 && e.pointerType !== "mouse") {
+      if (!moved && e.target === stage) tapUi();                                    // тап по фону
+      else if (!moved && e.target.tagName === "IMG") {                                    // двойной тап
+        const now = Date.now();
+        if (now - tap < 300) { clearTimeout(uiT); zoomAt(zs !== 1 ? 1 : 2.5, e.clientX, e.clientY); tap = 0; }
+        else { tap = now; tapUi(); }
+      }
+    }
+    if (pts.size === 0) s0 = null;
+    g0 = pts.size ? {...gesture(), s: zs, zx, zy} : null;
+  };
+  stage.addEventListener("pointerup", up);
+  stage.addEventListener("pointercancel", up);
+  fromUrl(true);
+  }
+})();
+</script>
+</body>
+</html>
