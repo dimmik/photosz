@@ -84,21 +84,23 @@ h2 a { color: inherit; text-decoration: none; }
     const h = document.createElement("h1"); h.textContent = A.title;
     const p = document.createElement("p"); p.className = "lead"; p.textContent = A.albums.length + " · новые сверху";
     app.append(h, p);
+    // ссылки на альбомы — в новой вкладке (noopener: открытая страница не видит эту)
+    const newTab = l => { l.target = "_blank"; l.rel = "noopener"; };
     A.albums.forEach(a => {
       const el = document.createElement("article"); el.className = "item";
       const pics = document.createElement("div"); pics.className = "pics";
       a.pics.forEach(f => {
         const l = document.createElement("a"), im = document.createElement("img");
-        l.href = a.url; im.alt = ""; l.appendChild(im); pics.appendChild(l);
+        l.href = a.url; newTab(l); im.alt = ""; l.appendChild(im); pics.appendChild(l);
         url(f).then(u => { im.src = u; });
       });
       const b = document.createElement("div");
       const t = document.createElement("h2"), ta = document.createElement("a");
-      ta.href = a.url; ta.textContent = a.title; t.appendChild(ta);
+      ta.href = a.url; newTab(ta); ta.textContent = a.title; t.appendChild(ta);
       const d = document.createElement("div"); d.className = "dates"; d.textContent = a.dates;
       const k2 = document.createElement("div"); k2.className = "key"; k2.textContent = a.key;
       const acts = document.createElement("div"); acts.className = "acts";
-      const o = document.createElement("a"); o.href = a.url; o.textContent = "Открыть";
+      const o = document.createElement("a"); o.href = a.url; newTab(o); o.textContent = "Открыть";
       acts.appendChild(o);
       [["Скопировать ссылку", a.url], ["Скопировать ключ", a.key]].forEach(([label, v]) => {
         const c = document.createElement("button"); c.textContent = label;
