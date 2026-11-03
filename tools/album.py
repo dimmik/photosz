@@ -27,6 +27,17 @@ PAGES = "https://dimmik.github.io/photosz"
 INDEX_ROOT = os.path.join(BASE, ".albums-index")   # источник индекса; вне git, как и всё с ключами
 INDEX_SLUG = "albums"
 SECTIONS = 10                  # цель — до 10 разделов
+SECTION_RULE = ("- Up to {} sections; each 3–5 main photos and, where available, 1–2 videos. If there are more sections "
+                "than that, drop the weakest (\"drop\": true). Never drop a section that has a funny series unless it is "
+                "still clearly the weakest.")
+# альбом «по дням» (select.py byday): глава = день, разделы = места этого дня
+DAY_RULE = ("- The album is told DAY BY DAY: each day is a chapter, its sections are the places visited that day "
+            "(\"day N\" in the context). EVERY day must keep at least 2 main photos in total (if the day has them at all), "
+            "so never drop all sections of a day. A strong place gets 3–6 main photos, a minor one 1–3; drop (\"drop\": true) "
+            "only empty or dull sections whose day is already covered by another section. Snow scenes and views over the "
+            "city/landscape are welcome — include the good ones. \"MUST include\" labels are mandatory main photos "
+            "(they do count toward variety, not toward a limit). Section titles name the place or what we did there "
+            "(2–4 words), not the day.")
 DRAFT = 16                     # черновых разделов с запасом (слабые отсеются)
 CHUNK = 10                     # листов прохода 1 на одного Haiku-агента
 
@@ -152,7 +163,10 @@ def cmd_shortlist(root):
     for s in secs:
         p = s["place"]
         pl = ", ".join(v for k, v in p.items() if k in ("tourism", "leisure", "road", "neighbourhood", "suburb", "city"))
-        lines.append(f"s{s['n']:02d}: {s['start'][5:16].replace('T', ' ')}–{s['end'][11:16]}, near: {pl}")
+        day = f"day {s['day']}, " if "day" in s else ""
+        lines.append(f"s{s['n']:02d}: {day}{s['start'][5:16].replace('T', ' ')}–{s['end'][11:16]}, near: {pl}")
+        if s.get("must"):
+            lines.append("  MUST include as main photos (the owner asked for them): " + ", ".join(map(str, s["must"])))
         lines.append("  photos: " + "; ".join(f"{i}={d(f)} ({sc.get(f, {}).get('score', '?')}/{sc.get(f, {}).get('fun', 0)})"
                                             for i, f in enumerate(s["candidates"], 1)))
         if s.get("fun_candidates"):
@@ -165,7 +179,8 @@ def cmd_shortlist(root):
         for fs in s.get("fun_series", []):
             lines.append(f"  already included funny series: «{fs['caption']}»")
     p = write_prompt(root, "pass2.txt", tpl(
-        "pass2.md", TRIP=trip(root), MAX_SECTIONS=SECTIONS, CONTEXT="\n".join(lines),
+        "pass2.md", TRIP=trip(root), SECTION_RULE=DAY_RULE if any("day" in s for s in secs) else SECTION_RULE.format(SECTIONS),
+        CONTEXT="\n".join(lines),
         SHEETS=", ".join(os.path.join(root, s["sheet"]) for s in secs), OUT=os.path.join(work, "picks.json")))
     print(f"\nПРОМПТ ПРОХОДА 2:\n  sonnet  {p}")
 

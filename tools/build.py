@@ -164,7 +164,7 @@ def main():
                          **en(p, "title"), **en(p, "desc"), "day_en": fmt_day_en(t0),
                          "time": t0.strftime("%H:%M"), "place": p.get("place") or place_label(s["place"]),
                          "place_en": p.get("place_en") or place_label(s.get("place_en") or s["place"]),
-                         "items": items})
+                         "items": items, **({"dayn": s["day"]} if "day" in s else {})})
 
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
         sizes = list(ex.map(lambda j: j[1](j[2], media, j[0]["id"]), jobs))
@@ -188,6 +188,8 @@ def main():
     dates_en = (f"{fmt_day_en(t_first)}–{t_last.day}, {t_last.year}" if t_first.month == t_last.month
                 else f"{fmt_day_en(t_first)} – {fmt_day_en(t_last)}, {t_last.year}")
     cover = overrides.get("cover") or picked_cover(picks, sections) or pick_cover(chapters)
+    if cover not in keep:                                # обложка не из глав — её файл тоже нужен
+        photo_job(os.path.join(root, "src", meta[cover]["file"]), media, cover)
     # обложка не повторяется в главе (если в главе останется ≥ 3 фото)
     for c in chapters:
         ph = [it for it in c["items"] if it["type"] == "photo"]

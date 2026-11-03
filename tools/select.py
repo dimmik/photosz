@@ -293,6 +293,68 @@ def cmd_sections(root, n):
     print(f"Проход 1: {len(cells)} фото + {len(vids)} видео + {len(series)} серий на {len(sheets)} листах в {out_dir}")
 
 
+DAY_GAP = timedelta(minutes=60)   # по дням: внутри дня новое место — после паузы ≥ 1 ч или переезда
+DAY_MAX_PARTS = 4                 # не больше 4 мест в день (лишние сливаем с соседом)
+
+
+def cmd_byday(root):
+    """Разделы «по дням»: каждый день — 1–4 подраздела по местам. Оценки прохода 1 и серии сохраняются
+    (переписываются только sections.json и номера разделов у серий)."""
+    work, items = load(root)
+    fill_gps(items)
+    days = {}
+    for r in items:
+        days.setdefault(r["t"].date(), []).append(r)
+    secs = []
+    for d, rs in sorted(days.items()):
+        parts, cur = [], []
+        for r in rs:
+            if cur and (r["t"] - cur[-1]["t"] > DAY_GAP or
+                        ("lat" in r and "lat" in cur[-1] and km(r, cur[-1]) > 3 * JUMP_KM)):
+                parts.append(cur)
+                cur = []
+            cur.append(r)
+        parts.append(cur)
+        # мелкие (< MIN_SEG) и соседние близкие места сливаем; день целиком сохраняем, даже если он мал
+        changed = True
+        while changed and len(parts) > 1:
+            changed = False
+            for i, p in enumerate(parts):
+                if len(p) < MIN_SEG or len(parts) > DAY_MAX_PARTS:
+                    if len(p) >= MIN_SEG:
+                        i = min(range(len(parts)), key=lambda j: len(parts[j]))
+                        p = parts[i]
+                    j = i - 1 if i == len(parts) - 1 or (i > 0 and len(parts[i - 1]) <= len(parts[i + 1])) else i + 1
+                    a, b = sorted((i, j))
+                    parts[a:b + 1] = [parts[a] + parts[b]]
+                    changed = True
+                    break
+        secs += [(d, p) for p in parts]
+    cache_p = os.path.join(work, "geocache.json")
+    cache = json.load(open(cache_p)) if os.path.exists(cache_p) else {}
+    sections, day_no = [], {d: i for i, d in enumerate(sorted(days), 1)}
+    for k, (d, sec) in enumerate(secs, 1):
+        photos = [r for r in dedupe([r for r in sec if r["type"] == "photo"]) if not junk(r)]
+        c = center(sec) or {"lat": 0, "lon": 0}
+        sections.append({"n": k, "day": day_no[d], "start": sec[0]["time"], "end": sec[-1]["time"], "count": len(sec),
+                         "lat": round(c["lat"], 5), "lon": round(c["lon"], 5),
+                         "place": place_name(c["lat"], c["lon"], cache) if c["lat"] else {},
+                         "place_en": place_name(c["lat"], c["lon"], cache, "en") if c["lat"] else {},
+                         "photos": [r["id"] for r in photos],
+                         "videos": [r["id"] for r in sec if r["type"] == "video"]})
+        print(f"s{k:02d} день {day_no[d]:2} {sec[0]['t']:%m-%d %H:%M}–{sec[-1]['t']:%H:%M} {len(sec):4} кадров; "
+              f"{sections[-1]['place'].get('city') or sections[-1]['place'].get('town') or sections[-1]['place'].get('village') or ''}")
+    sp = os.path.join(work, "series.json")
+    if os.path.exists(sp):
+        where = {f: s["n"] for s in sections for f in s["photos"]}
+        series = json.load(open(sp))
+        for v in series.values():
+            v["section"] = next((where[f] for f in v["all"] if f in where), 0)
+        json.dump(series, open(sp, "w"), indent=1)
+    json.dump(cache, open(cache_p, "w"), ensure_ascii=False, indent=1)
+    json.dump(sections, open(os.path.join(work, "sections.json"), "w"), indent=1, ensure_ascii=False)
+
+
 def load_scores(work):
     """Оценки прохода 1, привязанные к id файла (переживают пересборку разделов).
     Новые work/scores.json (ключи — метки листов) вливаются в work/scores_id.json."""
@@ -331,9 +393,15 @@ def cmd_shortlist(root, k):
         if "place_en" not in s:
             s["place_en"] = place_name(s["lat"], s["lon"], cache, "en")
     json.dump(cache, open(cache_p, "w"), ensure_ascii=False, indent=1)
+    # work/boost.json: {"must": [id…]} — обязательно в альбом (номера — s["must"]), {"extra": [id…]} — в кандидаты
+    bp = os.path.join(work, "boost.json")
+    boost = json.load(open(bp)) if os.path.exists(bp) else {}
     for s in sections:
+        t0, t1 = datetime.fromisoformat(s["start"]), datetime.fromisoformat(s["end"])
+        inside = lambda f: f in meta and t0 <= datetime.fromisoformat(meta[f]["time"]) <= t1
+        must = [f for f in boost.get("must", []) if inside(f)]
         # лучшие по оценке, без повторов: одинаковое описание или похожий pHash — повтор
-        cand = []
+        cand = [f for f in boost.get("extra", []) if inside(f) and f not in must][:3]
         for f in sorted(s["photos"], key=lambda f: (sc(f), meta[f]["sharp"]), reverse=True):
             what = scores.get(f, {}).get("what", "").lower()
             h = imagehash.hex_to_hash(meta[f]["phash"])
@@ -341,9 +409,11 @@ def cmd_shortlist(root, k):
                    h - imagehash.hex_to_hash(meta[c]["phash"]) <= 14 for c in cand):
                 continue
             cand.append(f)
-            if len(cand) == k:
+            if len(cand) >= k:
                 break
+        cand = [f for f in cand if f not in must] + must
         cand.sort(key=lambda f: meta[f]["time"])
+        s["must"] = [cand.index(f) + 1 for f in must]
         # моменты: самые смешные/необычные кадры не из основного шорт-листа; из одной серии (±60 с) — один
         funs = []
         for f in sorted(s["photos"], key=lambda f: (fun(f), sc(f)), reverse=True):
@@ -380,7 +450,7 @@ def cmd_shortlist(root, k):
             ids = [series[key]["ids"][i - 1] for i in v.get("frames", []) if 0 < i <= len(series[key]["ids"])]
             s["fun_series"].append({"key": key, "ids": ids or series[key]["ids"], "caption": v.get("caption", ""),
                                     "caption_en": v.get("caption_en", "")})
-        s["weak"] = s["best"] < WEAK and not s["fun_series"] and not any(fun(f) >= FUN for f in funs + vids)
+        s["weak"] = "day" not in s and s["best"] < WEAK and not s["fun_series"] and not any(fun(f) >= FUN for f in funs + vids)
         if s["weak"]:
             print(f"s{s['n']:02d}: слабый раздел (лучшая оценка {s['best']}) — пропущен")
             continue
@@ -408,12 +478,14 @@ def cmd_shortlist(root, k):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("root")
-    ap.add_argument("cmd", choices=["sections", "shortlist"])
+    ap.add_argument("cmd", choices=["sections", "shortlist", "byday"])
     ap.add_argument("--sections", type=int, default=10)
     ap.add_argument("--candidates", type=int, default=8)
     a = ap.parse_args()
     if a.cmd == "sections":
         cmd_sections(a.root, a.sections)
+    elif a.cmd == "byday":
+        cmd_byday(a.root)
     else:
         cmd_shortlist(a.root, a.candidates)
 

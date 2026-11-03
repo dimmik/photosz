@@ -7,7 +7,7 @@ Context per section (time, place from GPS, first-pass descriptions with score/fu
 {{CONTEXT}}
 
 Rules:
-- Up to {{MAX_SECTIONS}} sections; each 3–5 main photos and, where available, 1–2 videos. If there are more sections than that, drop the weakest ("drop": true). Never drop a section that has a funny series unless it is still clearly the weakest.
+{{SECTION_RULE}}
 - Main photos: clear subject, sense of place, moments, people with great backgrounds; never near-identical shots; at most one selfie per section; variety (wide + detail + people). Avoid repeating the same landmark view across sections.
 - Videos: keep the ones where something distinctive happens; skip static/shaky/repetitive ones; never two near-identical clips. If the same event appears in two sections, keep it once. Mark a funny/unusual clip "fun": true.
 - "fun": 0–2 extra photos per section from F-labels (or a main label via "id_main") that are genuinely funny/unusual/surprising — they go BEYOND the 3–5 limit with a «момент» badge.
