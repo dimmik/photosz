@@ -213,7 +213,7 @@ h2 { font: 400 26px/1.2 var(--serif); margin: 44px 0 14px; padding-bottom: 8px; 
         h3.children[1].textContent = tx(c, "title");
         if (c.star) { const s = document.createElement("span"); s.className = "star"; s.textContent = " ★"; h3.appendChild(s); }
         if (c.done) {                                  // готовый альбом: плашка-ссылка
-          const a = document.createElement("a"); a.className = "done"; a.href = c.done; a.textContent = t.done; h3.appendChild(a);
+          const a = document.createElement("a"); a.className = "done"; a.href = c.done; a.target = "_blank"; a.rel = "noopener"; a.textContent = t.done; h3.appendChild(a);
         }
         const m = document.createElement("div"); m.className = "meta";
         m.textContent = [c.dates, `${c.count} ${t.photos}`, c.places.join(", ")].filter(Boolean).join(" · ");
