@@ -5,11 +5,11 @@
   python3 tools/faces.py "<альбом>" learn           запомнить людей из work/people.json (что уже назвал пользователь)
   python3 tools/faces.py "<альбом>" auto            подписать знакомых в work/people.json, незнакомых — лист групп
                                                     work/extras/people.jpg с метками G#
-  python3 tools/faces.py "<альбом>" name G1=Даша/Dasha G2=…   назвать группы и снова подписать
+  python3 tools/faces.py "<альбом>" name G1=Маша/Masha G2=…   назвать группы и снова подписать
   python3 tools/faces.py "<альбом>" guard           проверить album/media на людей из .faces/never.npz (код 1, если нашлись)
 
 Веса — в .faces/models/ (скачиваются сами, с проверкой SHA-256), справочник людей — .faces/people.npz.
-Векторы лиц — биометрия семьи: .faces/ и work/ в git не попадают и никуда не отправляются.
+Векторы лиц — биометрия: .faces/ и work/ в git открыто не попадают (только в зашифрованной копии, tools/backup.py).
 """
 import argparse, hashlib, importlib.util, json, os, urllib.request
 
@@ -125,7 +125,7 @@ def clear(b):
 
 
 def split_names(p):
-    """{"ru": "Даша и Оля", "en": "Dasha and Olya"} → [("Даша", "Dasha"), ("Оля", "Olya")]"""
+    """{"ru": "Маша и Петя", "en": "Masha and Petya"} → [("Маша", "Masha"), ("Петя", "Petya")]"""
     ru, en = p["ru"].split(" и "), (p.get("en") or "").split(" and ")
     return list(zip(ru, en)) if len(ru) == len(en) else [(n, "") for n in ru]
 
@@ -242,8 +242,9 @@ def cmd_name(root, pairs):
 
 def cmd_guard(root):
     """Стоп-лист: лицо ближе к человеку из never.npz, чем к кому-либо из справочника, — публикация запрещена."""
-    if not os.path.exists(NEVER):
-        return
+    if not os.path.exists(NEVER):                    # новый компьютер без восстановления — не публикуем вслепую
+        print(f"СТОП-ЛИСТ НЕ НАЙДЕН ({NEVER}): восстанови копию (tools/backup.py restore) или собери стоп-лист заново")
+        raise SystemExit(1)
     never = np.load(NEVER)["vecs"]
     book = load_book()
     det = cv2.FaceDetectorYN.create(model("face_detection_yunet_2023mar.onnx"), "", (320, 320), 0.7)

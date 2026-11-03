@@ -7,6 +7,11 @@
 !/robots.txt
 !/README.md
 !/plan.md
+!/CLAUDE.md
+!/requirements.txt
+!/backup/
+/backup/.state.json
+/tools/archive.py
 !/tools/
 !/.claude/
 /.claude/*

@@ -1,0 +1,9 @@
+{
+ "v": 1,
+ "kdf": "scrypt",
+ "n": 131072,
+ "r": 8,
+ "p": 1,
+ "salt": "8bEavHLD91FsibNsq8ZdGw==",
+ "pub": "euZFejKE7gwsEMnZBnRoPDHRaJgfAMZfCN2ZVO59KSc="
+}

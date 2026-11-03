@@ -353,7 +353,8 @@ def cmd_publish(root, slug=None):
         open(ign, "a").write(f"!/{slug}/\n")
     if not is_index and f"!/{INDEX_SLUG}/" not in open(ign).read().split():
         open(ign, "a").write(f"!/{INDEX_SLUG}/\n")
-    g("add", "-A", "--", slug, INDEX_SLUG, "index.html", "robots.txt", ".nojekyll", ".gitignore")
+    py("backup.py", "save", "core")                      # зашифрованная копия рабочих файлов (фраза не нужна)
+    g("add", "-A", "--", slug, INDEX_SLUG, "index.html", "robots.txt", ".nojekyll", ".gitignore", "backup")
     if subprocess.run(["git", "-C", REPO_DIR, "diff", "--cached", "--quiet"]).returncode:
         g("commit", "-q", "-m", f"Publish album {slug}\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n"
           "Claude-Session: https://claude.ai/code/session_01XarAvaQnY5vkZUXThqQNei")
@@ -449,7 +450,7 @@ def main():
     ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people", "name", "index", "done",
                                        "suggest", "usage"])
     ap.add_argument("path", nargs="?", default=".")
-    ap.add_argument("pairs", nargs="*")                  # name: G1=Даша/Dasha …
+    ap.add_argument("pairs", nargs="*")                  # name: G1=Маша/Masha …
     ap.add_argument("--slug")
     ap.add_argument("--title")
     a = ap.parse_args()

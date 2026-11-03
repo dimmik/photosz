@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Этап 2: зашифрованная копия альбома для статического хостинга (GitHub Pages).
 
-  python3 tools/publish.py "<альбом>" --repo . --slug sf-2026-10
+  python3 tools/publish.py "<альбом>" --repo . --slug trip-2026-10
 
 Берёт собранный album/ (album.json + media/), шифрует album.json и каждый медиафайл
 AES-256-GCM ключом из PBKDF2-SHA256(ключ доступа, соль). Пишет <repo>/<slug>/index.html

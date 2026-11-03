@@ -1,0 +1,8 @@
+# Python-библиотеки пайплайна (версии, на которых всё проверено; ставит tools/setup.sh)
+Pillow==12.3.0
+pillow-heif==1.8.1
+ImageHash==4.3.2
+numpy==2.2.6
+opencv-python-headless==5.0.0.93
+reverse_geocoder==1.5.1
+cryptography>=3.4
