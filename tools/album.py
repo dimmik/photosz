@@ -230,6 +230,36 @@ def gh(path, token):
     return json.load(urllib.request.urlopen(req, timeout=30))
 
 
+LIMIT_MB = 1024                # GitHub Pages: сайт ≤ 1 ГБ; репозиторий тоже лучше держать < 1 ГБ
+WARN_SHARE = 0.8               # больше 80% — предлагаем новый репозиторий
+
+
+def cmd_usage():
+    """Сколько занято: опубликованный сайт (файлы в HEAD) и весь репозиторий с историей (по API GitHub)."""
+    out = subprocess.run(["git", "-C", REPO_DIR, "ls-tree", "-r", "-l", "HEAD"], capture_output=True, text=True, check=True).stdout
+    site, by = 0, {}
+    for line in out.splitlines():
+        meta, path = line.split("\t", 1)
+        size = meta.split()[3]
+        if size.isdigit():
+            site += int(size)
+            by[path.split("/")[0]] = by.get(path.split("/")[0], 0) + int(size)
+    repo = None
+    try:
+        repo = gh("", open(os.path.join(BASE, "token.txt")).read().strip())["size"] * 1024
+    except Exception as e:
+        print("размер репозитория по API не получен:", e)
+    mb = lambda b: b / 1048576
+    print(f"сайт (Pages): {mb(site):.0f} МБ из {LIMIT_MB} ({mb(site) / LIMIT_MB:.0%})")
+    if repo is not None:
+        print(f"репозиторий с историей: {mb(repo):.0f} МБ из {LIMIT_MB} ({mb(repo) / LIMIT_MB:.0%})")
+    print("  " + ", ".join(f"{k} {mb(v):.0f}" for k, v in sorted(by.items(), key=lambda x: -x[1]) if v > 1048576))
+    worst = max(site, repo or 0) / 1048576 / LIMIT_MB
+    if worst > WARN_SHARE:
+        print(f"ВНИМАНИЕ: занято {worst:.0%} (> {WARN_SHARE:.0%}) — предложи пользователю новый репозиторий")
+    return worst
+
+
 def cmd_push():
     """Push в origin/master; токен из token.txt идёт заголовком и не пишется в .git/config."""
     token = open(os.path.join(BASE, "token.txt")).read().strip()
@@ -373,6 +403,8 @@ MEDIA_EXT = (".jpg", ".jpeg", ".png", ".heic", ".heif", ".mp4", ".mov", ".m4v")
 
 def cmd_find():
     """Папки в корне проекта (и на уровень глубже), где есть зип или фото/видео, но альбом не опубликован."""
+    cmd_usage()                                     # перед новым альбомом — сколько места осталось
+    print()
     skip = {"tools", ".claude", ".shots", ".git"}
     found = []
     for d in sorted(os.listdir(BASE)):
@@ -415,7 +447,7 @@ def cmd_status(root):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["prepare", "shortlist", "build", "publish", "status", "find", "push", "extras", "people", "name", "index", "done",
-                                       "suggest"])
+                                       "suggest", "usage"])
     ap.add_argument("path", nargs="?", default=".")
     ap.add_argument("pairs", nargs="*")                  # name: G1=Даша/Dasha …
     ap.add_argument("--slug")
@@ -427,7 +459,7 @@ def main():
      "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
      "extras": lambda: cmd_extras(a.path), "index": lambda: (build_index(), cmd_publish(INDEX_ROOT, INDEX_SLUG)),
      "done": lambda: mark_done(int(os.path.basename(a.path)), a.pairs[0]), "people": lambda: cmd_people(a.path), "name": lambda: py("faces.py", a.path, "name", *a.pairs),
-     "suggest": lambda: py("extras.py", a.path, "suggest")}[a.cmd]()
+     "suggest": lambda: py("extras.py", a.path, "suggest"), "usage": cmd_usage}[a.cmd]()
 
 
 if __name__ == "__main__":
