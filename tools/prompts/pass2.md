@@ -15,6 +15,7 @@ Rules:
 - "hero": the strongest landscape photo of the section (a main label), shown full-width.
 - "cover": best photo of the whole album, horizontal and iconic: {"s": N, "n": label}; not a section's hero.
 - "album_title": short Russian album title (1–3 words, usually the place, e.g. «Сан-Франциско»); "album_title_en": the same in English.
+- Check the section time before writing "sunset"/"закат" or "sunrise"/"рассвет": morning light is a sunrise, evening light is a sunset.
 - Russian text: "title" 2–4 words; "desc" one sentence ≤ 20 words; captions ≤ 8 words, accurate (name landmarks only when sure). Fun captions may be playful.
 - Every text field also gets a natural English version (not a word-by-word translation): "title_en", "desc_en", "caption_en"; use standard English names of places/landmarks.
 
