@@ -166,7 +166,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 .lb:fullscreen .lb-peek.over { background: #000; }
 .lb-stage img { cursor: zoom-in; -webkit-user-drag: none; }
 .lb-stage.zoomed img, .lb-stage.zoomed video { cursor: grab; box-shadow: none; }
-.lb-mini { position: absolute; z-index: 2; left: 16px; top: 44px; pointer-events: none;
+.lb-mini { position: absolute; z-index: 2; left: 16px; top: 68px; pointer-events: none;
   border: 1px solid rgba(239,232,220,.6); box-shadow: 0 4px 16px rgba(0,0,0,.6); background: #000; }
 .lb-mini[hidden] { display: none; }
 .lb-mini img { width: 100%; height: 100%; object-fit: fill; opacity: .75; }
@@ -176,7 +176,7 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 /* подпись — поверх фото на прозрачном градиенте; тап/клик по фото прячет её и все кнопки */
 .lb-cap, .lb button, .lb-count, .lb-zoom { transition: opacity .25s; }
 .lb .lb-zoom button[hidden] { display: none; }
-.lb.bare .lb-cap, .lb.bare button, .lb.bare .lb-count, .lb.bare .lb-zoom { opacity: 0 !important; pointer-events: none; }
+.lb.bare .lb-cap, .lb.bare button, .lb.bare .lb-count, .lb.bare .lb-zoom, .lb.bare .lb-prog { opacity: 0 !important; pointer-events: none; }
 .lb .lb-zoom button { position: static; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; font: 400 26px/1 var(--sans) !important; }
 .lb-cap { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; pointer-events: none;
   padding: 36px clamp(16px, 6vw, 88px) 16px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline;
@@ -191,8 +191,22 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 .lb-close { top: 4px; right: 8px; }
 .lb-prev, .lb-next { top: 50%; transform: translateY(-50%); font-size: 44px !important; }
 .lb-prev { left: 4px; } .lb-next { right: 4px; }
-.lb-count { position: absolute; top: 20px; left: 24px; font: 600 12px/1 var(--sans); letter-spacing: .14em;
-  color: #c9c0b2; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.lb-count { position: absolute; z-index: 2; top: 20px; left: 24px; max-width: calc(100% - 260px); display: flex; flex-direction: column; gap: 6px;
+  font: 600 12px/1 var(--sans); letter-spacing: .14em; color: #c9c0b2; text-shadow: 0 1px 3px rgba(0,0,0,.7); pointer-events: none; }
+.lb-ch { font: italic 400 15px/1.25 var(--serif); letter-spacing: 0; color: #efe8dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 720px) { .lb-count { left: 16px; max-width: calc(100% - 230px); } }
+/* прогресс по альбому: отрезок на главу, заливка — где мы; тянуть/тыкать — переход */
+.lb-prog { position: absolute; z-index: 3; left: 0; right: 0; top: 0; height: 18px; cursor: pointer; touch-action: none; transition: opacity .25s; }
+.lb-segs { position: absolute; left: 0; right: 0; top: 0; height: 4px; display: flex; gap: 2px; transition: height .15s; }
+.lb-prog:hover .lb-segs, .lb-prog.drag .lb-segs { height: 8px; }
+@media (pointer: coarse) { .lb-prog { height: 30px; } .lb-tip { top: 26px; } }
+.lb-segs i { position: relative; flex: var(--n) 1 0; min-width: 2px; background: rgba(239,232,220,.22); overflow: hidden; }
+.lb-segs i.cur { background: rgba(239,232,220,.4); }
+.lb-segs b { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #ffb547; }
+.lb-tip { position: absolute; top: 16px; padding: 5px 11px; border-radius: 12px; max-width: 80vw; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(239,232,220,.95); color: #1d1a16; font: 600 12px/1.3 var(--sans); white-space: nowrap; pointer-events: none; opacity: 0; }
+.lb-prog.drag .lb-tip { opacity: 1; }
+@media (hover: hover) { .lb-prog:hover .lb-tip { opacity: 1; } }
 
 .lang-pill { position: absolute; z-index: 2; top: 18px; right: clamp(16px, 4vw, 48px); padding: 6px 14px;
   border: 1px solid rgba(255,255,255,.55); border-radius: 20px; background: rgba(0,0,0,.25); color: #fff;
@@ -247,7 +261,8 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 <div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Просмотр">
   <div class="lb-stage" id="lb-stage"></div>
   <div class="lb-cap"><b id="lb-cap"></b><small id="lb-sub"></small></div>
-  <span class="lb-count" id="lb-count"></span>
+  <div class="lb-count"><span id="lb-count"></span><span class="lb-ch" id="lb-ch"></span></div>
+  <div class="lb-prog" id="lb-prog"><div class="lb-segs" id="lb-segs"></div><span class="lb-tip" id="lb-tip"></span></div>
   <div class="lb-mini" id="lb-mini" hidden><img alt=""><i></i></div>
   <button class="lb-close" id="lb-close" aria-label="Закрыть">×</button>
   <div class="lb-zoom"><button id="lb-link" aria-label="Link"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1"/></svg></button><button id="lb-fs" aria-label="Fullscreen" hidden><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 7V2h5M13 2h5v5M18 13v5h-5M7 18H2v-5"/></svg></button><button id="lb-out" aria-label="−">−</button><button id="lb-in" aria-label="+">+</button></div>
@@ -400,6 +415,7 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
   A.chapters.forEach((c, ci) => {
     if (byDay && (ci === 0 || A.chapters[ci - 1].dayn !== c.dayn))
       h += `<div class="day-head"><div><span class="day-n">${T.day} ${c.dayn}</span><span class="day-date">${esc(tx(c, "day"))}</span></div></div>`;
+    c.num = num(c, ci);
     h += `<section class="chapter" id="ch${ci + 1}">
       <div class="ch-head">
         <div class="ch-num">${num(c, ci)}</div>
@@ -551,10 +567,53 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
     document.getElementById("lb-cap").textContent = tx(it, "caption") + (it.note ? ". " + tx(it, "note") : "");
     document.getElementById("lb-sub").textContent = `${tx(it.chapter, "day")}, ${it.time}`;
     document.getElementById("lb-count").textContent = `${cur + 1} / ${flat.length}`;
+    document.getElementById("lb-ch").textContent = `${it.chapter.num} · ${tx(it.chapter, "title")}`;
+    progress();
     // заранее готовим соседние фото
     [cur + 1, cur - 1].forEach(j => { const n = flat[(j + flat.length) % flat.length];
       if (n.type === "photo") url(n.id + ".jpg").then(u => { new Image().src = u; }); });
   }
+  // ── прогресс: отрезки по главам (ширина — по числу фото), клик или перетаскивание — переход ──
+  const prog = document.getElementById("lb-prog"), segs = document.getElementById("lb-segs"), tip = document.getElementById("lb-tip");
+  let parts = [], partsFor = null;
+  function progress() {
+    if (partsFor !== flat) {                           // flat пересобирается при смене языка
+      partsFor = flat; parts = [];
+      flat.forEach((it, k) => { const p = parts[parts.length - 1];
+        if (p && p.c === it.chapter) p.n++; else parts.push({c: it.chapter, s: k, n: 1}); });
+      segs.innerHTML = parts.map(p => `<i style="--n:${p.n}"><b></b></i>`).join("");
+    }
+    parts.forEach((p, j) => { const el = segs.children[j];
+      const f = cur >= p.s + p.n ? 100 : cur < p.s ? 0 : (cur - p.s + 1) / p.n * 100;
+      el.firstChild.style.width = f + "%"; el.classList.toggle("cur", cur >= p.s && cur < p.s + p.n); });
+  }
+  const progAt = x => {                                // номер фото под точкой x
+    for (let j = 0; j < parts.length; j++) {
+      const r = segs.children[j].getBoundingClientRect();
+      if (x < r.right + 1 || j === parts.length - 1) {
+        const f = Math.min(Math.max((x - r.left) / r.width, 0), .999);
+        return parts[j].s + Math.floor(f * parts[j].n);
+      }
+    }
+    return cur;
+  };
+  const progTip = x => {
+    const k = progAt(x), it = flat[k];
+    tip.textContent = `${k + 1} · ${it.chapter.num} ${tx(it.chapter, "title")}`;
+    const w = tip.offsetWidth;
+    tip.style.left = Math.min(Math.max(x - w / 2, 8), innerWidth - w - 8) + "px";
+    return k;
+  };
+  prog.addEventListener("pointerdown", e => { prog.setPointerCapture(e.pointerId); prog.classList.add("drag"); progTip(e.clientX); e.preventDefault(); });
+  prog.addEventListener("pointermove", e => { progTip(e.clientX); });
+  prog.addEventListener("pointerup", e => {
+    if (!prog.classList.contains("drag")) return;
+    prog.classList.remove("drag");
+    const k = progAt(e.clientX);
+    if (k !== cur) { show(k); mark(); }
+  });
+  prog.addEventListener("pointercancel", () => prog.classList.remove("drag"));
+
   // история: открытие фото — новая запись (#p=<id>, можно ссылаться), листание её заменяет,
   // поэтому «Назад» в браузере закрывает просмотр и возвращает к альбому, а не уводит со страницы
   const here = location.pathname + location.search;
