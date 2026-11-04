@@ -101,7 +101,8 @@ def files_of(part):
         for f in sorted(glob.glob(os.path.join(memory_dir(), "*"))):
             if os.path.isfile(f):
                 out.append((MEM + "/" + os.path.basename(f), f))
-        for f in ("plan.private.md", "album-candidates.md", "tools/archive.py", ".faces/never.npz", ".faces/people.npz"):
+        for f in ("plan.private.md", "album-candidates.md", "tools/archive.py", ".faces/never.npz", ".faces/people.npz",
+                  "phone-index/vote/album/album.json"):   # страница выбора собрана вручную, build её не восстановит
             add(os.path.join(BASE, f))
         for root in album_roots():
             w = os.path.join(root, "work")
