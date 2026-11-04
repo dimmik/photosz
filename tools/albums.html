@@ -42,6 +42,10 @@ h2 a { color: inherit; text-decoration: none; }
 .lock input { width: 100%; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); color: var(--ink); font: 500 17px/1.2 var(--sans); text-align: center; letter-spacing: .08em; }
 .lock form > button { margin-top: 12px; width: 100%; padding: 13px; border: 0; border-radius: 4px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
 .lock-err { min-height: 22px; margin-top: 12px; color: var(--accent); font-size: 14px; }
+.upd { position: fixed; z-index: 50; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border-radius: 22px; white-space: nowrap;
+  background: rgba(29,26,22,.94); color: #efe8dc; font: 500 14px/1.3 var(--sans); box-shadow: 0 4px 20px rgba(0,0,0,.35); }
+.upd button { border: 0; border-radius: 16px; padding: 7px 14px; background: #efe8dc; color: #1d1a16; font: 600 13px/1 var(--sans); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -115,6 +119,22 @@ h2 a { color: inherit; text-decoration: none; }
       app.appendChild(el);
     });
     app.hidden = false;
+    // новая версия на сервере: предлагаем обновиться (?v= — новый адрес, мимо кэша браузера)
+    let updShown = false;
+    const checkVer = async () => {
+      if (updShown || !A.ver) return;
+      let v = "";
+      try { const r = await fetch("version.txt", {cache: "no-store"}); if (r.ok) v = (await r.text()).trim(); } catch (e) {}
+      if (!/^[0-9a-f]{12}$/.test(v) || v === A.ver) return;
+      updShown = true;
+      const bar = document.createElement("div"); bar.className = "upd";
+      bar.innerHTML = "<span></span><button></button>";
+      bar.children[0].textContent = "Список обновился"; bar.children[1].textContent = "Обновить";
+      bar.children[1].onclick = () => location.replace(location.pathname + "?v=" + v + location.hash);
+      document.body.appendChild(bar);
+    };
+    checkVer();
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkVer(); });
     return true;
   }
   $("lock-form").onsubmit = async e => {
