@@ -11,7 +11,7 @@
 Веса — в .faces/models/ (скачиваются сами, с проверкой SHA-256), справочник людей — .faces/people.npz.
 Векторы лиц — биометрия: .faces/ и work/ в git открыто не попадают (только в зашифрованной копии, tools/backup.py).
 """
-import argparse, hashlib, importlib.util, json, os, urllib.request
+import argparse, hashlib, importlib.util, json, os, re, urllib.request
 
 import cv2
 import numpy as np
@@ -178,6 +178,10 @@ def crop(root, meta, fid, b, size=200):
     return im.crop((int(x - m), int(y - m), int(x + w + m), int(y + h + m))).resize((size, size))
 
 
+def join(xs, word):
+    return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + f" {word} " + xs[-1]
+
+
 def cmd_auto(root):
     spec = importlib.util.spec_from_file_location("sel", os.path.join(HERE, "select.py"))
     sel = importlib.util.module_from_spec(spec)
@@ -194,8 +198,9 @@ def cmd_auto(root):
         found = sorted(((boxes[i][0], who(book, vecs[i])) for i in np.where(ids == f)[0] if clear(boxes[i])), key=lambda x: x[0])
         names = list(dict.fromkeys(n for _, n in found if n))
         unknown += [i for i in np.where(ids == f)[0] if clear(boxes[i]) and who(book, vecs[i]) is None]
-        if names and f not in people:
-            people[f] = {"ru": " и ".join(names), "en": " and ".join(book[n]["en"] for n in names)}
+        old = set(re.split(r", | и ", people[f]["ru"])) if f in people else set()
+        if names and old < set(names):                   # новое фото или узнали ещё кого-то (ручные подписи не трогаем)
+            people[f] = {"ru": join(names, "и"), "en": join([book[n]["en"] for n in names], "and")}
             done += 1
             print(f"  {f}: {people[f]['ru']}")
     json.dump(people, open(pp, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
