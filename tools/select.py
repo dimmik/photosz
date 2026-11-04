@@ -8,7 +8,7 @@
       → work/sheets/sNN.jpg (крупные миниатюры лучших по оценке) + кандидаты в sections.json
         Проход 2 (ИИ): финальный выбор, герой, обложка, подписи → work/picks.json
 """
-import argparse, json, math, os, re, time, urllib.parse, urllib.request
+import argparse, json, math, os, re, sys, time, urllib.parse, urllib.request
 from datetime import datetime, timedelta
 
 import imagehash
@@ -355,6 +355,58 @@ def cmd_byday(root):
     json.dump(sections, open(os.path.join(work, "sections.json"), "w"), indent=1, ensure_ascii=False)
 
 
+def cmd_plan(root):
+    """Разделы по плану пользователя (work/plan.json): части с названиями, в них главы.
+    Глава — промежутки местного времени "ranges": [["2024-04-07T00:00", "2024-04-09T23:59"], …]
+    и/или явный список "ids"; "exclude" убирает кадры. Кадр из чьих-то "ids" не попадает в главы по времени
+    (так одна глава может собрать кадры разных дней, например сравнение). Оценки и серии сохраняются.
+    plan.json: [{"part": "Питер", "part_en": "St Petersburg", "part_dates": "10–12 апреля",
+                 "part_dates_en": "April 10–12", "chapters": [{"ranges": [[from, to]], "ids": [], "exclude": []}]}]"""
+    work, items = load(root)
+    fill_gps(items)
+    plan = json.load(open(os.path.join(work, "plan.json")))
+    loc = lambda r: r["t"].replace(tzinfo=None)
+    pinned = {i for p in plan for c in p["chapters"] for i in c.get("ids", [])}
+    secs = []
+    for pn, p in enumerate(plan, 1):
+        for c in p["chapters"]:
+            rng = [(datetime.fromisoformat(a), datetime.fromisoformat(b)) for a, b in c.get("ranges", [])]
+            ex = set(c.get("exclude", []))
+            sec = [r for r in items if r["id"] not in ex and (r["id"] in c.get("ids", []) or
+                   (r["id"] not in pinned and any(a <= loc(r) <= b for a, b in rng)))]
+            sec.sort(key=lambda r: r["t"])
+            if not sec:
+                sys.exit(f"пустая глава в части «{p['part']}»: {c}")
+            secs.append((pn, p, c, sec))
+    used = {r["id"] for *_, sec in secs for r in sec}
+    left = [r["id"] for r in items if r["id"] not in used]
+    cache_p = os.path.join(work, "geocache.json")
+    cache = json.load(open(cache_p)) if os.path.exists(cache_p) else {}
+    sections = []
+    for k, (pn, p, ch, sec) in enumerate(secs, 1):
+        photos = [r for r in dedupe([r for r in sec if r["type"] == "photo"]) if not junk(r)]
+        c = center(sec) or {"lat": 0, "lon": 0}
+        sections.append({"n": k, "day": pn, **{f: p[f] for f in ("part", "part_en", "part_dates", "part_dates_en") if f in p},
+                         **({"hint": ch["hint"]} if ch.get("hint") else {}),
+                         "start": sec[0]["time"], "end": sec[-1]["time"], "count": len(sec),
+                         "lat": round(c["lat"], 5), "lon": round(c["lon"], 5),
+                         "place": place_name(c["lat"], c["lon"], cache) if c["lat"] else {},
+                         "place_en": place_name(c["lat"], c["lon"], cache, "en") if c["lat"] else {},
+                         "photos": [r["id"] for r in photos],
+                         "videos": [r["id"] for r in sec if r["type"] == "video"]})
+        print(f"s{k:02d} часть {pn} {sec[0]['t']:%m-%d %H:%M}–{sec[-1]['t']:%m-%d %H:%M} {len(sec):4} кадров; {p['part']}")
+    print(f"вне плана: {len(left)} кадров" + (f" (например {', '.join(left[:5])})" if left else ""))
+    sp = os.path.join(work, "series.json")
+    if os.path.exists(sp):
+        where = {f: s["n"] for s in sections for f in s["photos"]}
+        series = json.load(open(sp))
+        for v in series.values():
+            v["section"] = next((where[f] for f in v["all"] if f in where), 0)
+        json.dump(series, open(sp, "w"), indent=1)
+    json.dump(cache, open(cache_p, "w"), ensure_ascii=False, indent=1)
+    json.dump(sections, open(os.path.join(work, "sections.json"), "w"), indent=1, ensure_ascii=False)
+
+
 def load_scores(work):
     """Оценки прохода 1, привязанные к id файла (переживают пересборку разделов).
     Новые work/scores.json (ключи — метки листов) вливаются в work/scores_id.json."""
@@ -396,9 +448,12 @@ def cmd_shortlist(root, k):
     # work/boost.json: {"must": [id…]} — обязательно в альбом (номера — s["must"]), {"extra": [id…]} — в кандидаты
     bp = os.path.join(work, "boost.json")
     boost = json.load(open(bp)) if os.path.exists(bp) else {}
+    placed = {f for s in sections for f in s["photos"]}
     for s in sections:
         t0, t1 = datetime.fromisoformat(s["start"]), datetime.fromisoformat(s["end"])
-        inside = lambda f: f in meta and t0 <= datetime.fromisoformat(meta[f]["time"]) <= t1
+        # кадр раздела; или в его времени, если ни в одном разделе (выпал как повтор) — глава по плану бывает из разных дней
+        inside = lambda f: f in s["photos"] or (f in meta and f not in placed and
+                                               t0 <= datetime.fromisoformat(meta[f]["time"]) <= t1)
         must = [f for f in boost.get("must", []) if inside(f)]
         # лучшие по оценке, без повторов: одинаковое описание или похожий pHash — повтор
         cand = [f for f in boost.get("extra", []) if inside(f) and f not in must][:3]
@@ -478,7 +533,7 @@ def cmd_shortlist(root, k):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("root")
-    ap.add_argument("cmd", choices=["sections", "shortlist", "byday"])
+    ap.add_argument("cmd", choices=["sections", "shortlist", "byday", "plan"])
     ap.add_argument("--sections", type=int, default=10)
     ap.add_argument("--candidates", type=int, default=8)
     a = ap.parse_args()
@@ -486,6 +541,8 @@ def main():
         cmd_sections(a.root, a.sections)
     elif a.cmd == "byday":
         cmd_byday(a.root)
+    elif a.cmd == "plan":
+        cmd_plan(a.root)
     else:
         cmd_shortlist(a.root, a.candidates)
 

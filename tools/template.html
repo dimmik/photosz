@@ -392,10 +392,14 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
   const nums = new Map();
   days.forEach(d => d.subs.forEach((c, j) => nums.set(c, d.subs.length > 1 ? `${d.n}.${j + 1}` : String(d.n))));
   const num = (c, i) => byDay ? nums.get(c) : pad(i + 1);
+  // вместо «День N» — часть с названием (у первой главы части есть part)
+  const headOf = d => d.c.part ? tx(d.c, "part") : `${T.day} ${d.n}`;
+  const dateOf = d => d.c.part ? tx(d.c, "part_dates") : tx(d.c, "day");
+  const byPart = byDay && days.every(d => d.c.part);
   const tocItems = byDay
     ? days.map(d => `
     <li><a href="#ch${d.i + 1}"><span class="toc-num">${d.n}</span>
-      <span><span class="toc-title">${esc(tx(d.c, "day"))}</span><span class="toc-subs">${d.subs.map(c => esc(tx(c, "title"))).join(" · ")}</span></span></a></li>`).join("")
+      <span><span class="toc-title">${esc(d.c.part ? tx(d.c, "part") : tx(d.c, "day"))}</span><span class="toc-subs">${d.subs.map(c => esc(tx(c, "title"))).join(" · ")}</span></span></a></li>`).join("")
     : A.chapters.map((c, i) => `
     <li><a href="#ch${i + 1}"><span class="toc-num">${pad(i + 1)}</span>
       <span><span class="toc-title">${esc(tx(c, "title"))}</span><span class="toc-day">${esc(tx(c, "day"))}</span></span></a></li>`).join("");
@@ -403,7 +407,7 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
     <button class="lang-pill" data-act="lang">${T.other}</button>
     <img data-name="${A.cover}.jpg" alt="">
     <div class="cover-text">
-      <div class="kicker">${T.album} · ${byDay ? T.days(days.length) : T.chapters(A.chapters.length)}</div>
+      <div class="kicker">${T.album} · ${byPart ? T.chapters(A.chapters.length) : byDay ? T.days(days.length) : T.chapters(A.chapters.length)}</div>
       <h1>${esc(tx(A, "title"))}</h1>
       <div class="dates">${esc(tx(A, "dates"))}</div>
     </div>
@@ -413,8 +417,10 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
   </ol></nav>`;
 
   A.chapters.forEach((c, ci) => {
-    if (byDay && (ci === 0 || A.chapters[ci - 1].dayn !== c.dayn))
-      h += `<div class="day-head"><div><span class="day-n">${T.day} ${c.dayn}</span><span class="day-date">${esc(tx(c, "day"))}</span></div></div>`;
+    if (byDay && (ci === 0 || A.chapters[ci - 1].dayn !== c.dayn)) {
+      const d = days.find(d => d.c === c);
+      h += `<div class="day-head"><div><span class="day-n">${esc(headOf(d))}</span><span class="day-date">${esc(dateOf(d))}</span></div></div>`;
+    }
     c.num = num(c, ci);
     h += `<section class="chapter" id="ch${ci + 1}">
       <div class="ch-head">

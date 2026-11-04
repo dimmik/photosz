@@ -38,6 +38,11 @@ DAY_RULE = ("- The album is told DAY BY DAY: each day is a chapter, its sections
             "city/landscape are welcome — include the good ones. \"MUST include\" labels are mandatory main photos "
             "(they do count toward variety, not toward a limit). Section titles name the place or what we did there "
             "(2–4 words), not the day.")
+# альбом по плану пользователя (select.py plan): части с названиями, в них главы
+PART_RULE = ("- The owner set the STRUCTURE: the album has named parts (\"part\" in the context), each part has sections. "
+             "Keep EVERY section (never \"drop\"), each with 2–6 main photos (a strong place 4–6, a minor one 2–3). "
+             "Follow the section \"hint\" from the owner for what it is about. \"MUST include\" labels are mandatory main "
+             "photos. Section titles name the place or what we did there (2–4 words), not the part.")
 DRAFT = 16                     # черновых разделов с запасом (слабые отсеются)
 CHUNK = 10                     # листов прохода 1 на одного Haiku-агента
 
@@ -163,8 +168,10 @@ def cmd_shortlist(root):
     for s in secs:
         p = s["place"]
         pl = ", ".join(v for k, v in p.items() if k in ("tourism", "leisure", "road", "neighbourhood", "suburb", "city"))
-        day = f"day {s['day']}, " if "day" in s else ""
+        day = (f"part «{s['part']}», " if "part" in s else f"day {s['day']}, ") if "day" in s else ""
         lines.append(f"s{s['n']:02d}: {day}{s['start'][5:16].replace('T', ' ')}–{s['end'][11:16]}, near: {pl}")
+        if s.get("hint"):
+            lines.append("  hint from the owner: " + s["hint"])
         if s.get("must"):
             lines.append("  MUST include as main photos (the owner asked for them): " + ", ".join(map(str, s["must"])))
         lines.append("  photos: " + "; ".join(f"{i}={d(f)} ({sc.get(f, {}).get('score', '?')}/{sc.get(f, {}).get('fun', 0)})"
@@ -179,7 +186,8 @@ def cmd_shortlist(root):
         for fs in s.get("fun_series", []):
             lines.append(f"  already included funny series: «{fs['caption']}»")
     p = write_prompt(root, "pass2.txt", tpl(
-        "pass2.md", TRIP=trip(root), SECTION_RULE=DAY_RULE if any("day" in s for s in secs) else SECTION_RULE.format(SECTIONS),
+        "pass2.md", TRIP=trip(root), SECTION_RULE=(PART_RULE if any("part" in s for s in secs) else DAY_RULE if any("day" in s for s in secs)
+                                          else SECTION_RULE.format(SECTIONS)),
         CONTEXT="\n".join(lines),
         SHEETS=", ".join(os.path.join(root, s["sheet"]) for s in secs), OUT=os.path.join(work, "picks.json")))
     print(f"\nПРОМПТ ПРОХОДА 2:\n  sonnet  {p}")
