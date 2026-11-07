@@ -165,6 +165,7 @@ def main():
                          "time": t0.strftime("%H:%M"), "place": p.get("place") or place_label(s["place"]),
                          "place_en": p.get("place_en") or place_label(s.get("place_en") or s["place"]),
                          "items": items, **({"dayn": s["day"]} if "day" in s else {}),
+                         **({"lat": round(s["lat"], 4), "lon": round(s["lon"], 4)} if s.get("lat") else {}),
                          **{k: s[k] for k in ("part", "part_en", "part_dates", "part_dates_en") if k in s}})
 
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as ex:
@@ -172,6 +173,8 @@ def main():
     for (it, _, _), (w, h) in zip(jobs, sizes):
         m = meta[it["id"]]
         it.update(w=w, h=h, time=datetime.fromisoformat(m["time"]).strftime("%H:%M"))
+        if m.get("lat") and not m.get("gps_inferred"):          # для ссылки на карту (≈10 м)
+            it.update(lat=round(m["lat"], 4), lon=round(m["lon"], 4))
         if it["type"] == "video":
             it["duration"] = m["duration"]
 
@@ -182,8 +185,10 @@ def main():
         if stem not in keep and stem.rsplit("_", 1)[0] not in keep:
             os.remove(os.path.join(media, f))
 
-    t_first = min(datetime.fromisoformat(s["start"]) for s in sections)   # глава по плану бывает не по порядку времени
-    t_last = max(datetime.fromisoformat(s["end"]) for s in sections)
+    # глава по плану бывает не по порядку времени; сравниваем по местному времени (пояс есть не у всех)
+    local = lambda t: datetime.fromisoformat(t).replace(tzinfo=None)
+    t_first = datetime.fromisoformat(min((s["start"] for s in sections), key=local))
+    t_last = datetime.fromisoformat(max((s["end"] for s in sections), key=local))
     dates = (f"{t_first.day}–{fmt_day(t_last)} {t_last.year}" if t_first.month == t_last.month
              else f"{fmt_day(t_first)} – {fmt_day(t_last)} {t_last.year}")
     dates_en = (f"{fmt_day_en(t_first)}–{t_last.day}, {t_last.year}" if t_first.month == t_last.month

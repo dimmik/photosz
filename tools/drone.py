@@ -366,6 +366,9 @@ def cmd_album(root):
     meta = json.load(open(os.path.join(work, "meta.json")))
     for r in meta:                              # время — местное, из имени файла (у клипа — от начала куска)
         r["time"] = times[r["id"]]
+        src_id = re.sub(r"_c\d{3}$", "", r["id"])
+        if r["type"] == "video" and byid[src_id].get("gps"):   # клип — точка полёта (из SRT)
+            r["lat"], r["lon"] = byid[src_id]["gps"]
     meta.sort(key=lambda r: r["time"])
     json.dump(meta, open(os.path.join(work, "meta.json"), "w"), ensure_ascii=False, indent=1)
     json.dump(sections, open(os.path.join(work, "sections.json"), "w"), ensure_ascii=False, indent=1)
