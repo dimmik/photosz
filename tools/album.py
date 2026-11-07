@@ -272,8 +272,14 @@ def cmd_push():
     """Push в origin/master; токен из token.txt идёт заголовком и не пишется в .git/config."""
     token = open(os.path.join(BASE, "token.txt")).read().strip()
     auth = "Authorization: Basic " + base64.b64encode(f"x-access-token:{token}".encode()).decode()
-    subprocess.run(["git", "-C", REPO_DIR, "-c", "http.extraHeader=" + auth, "push", "-q", "-u", "origin", "master"],
-                   check=True)
+    for attempt in range(3):            # большой пуш иногда обрывается — повторяем; токен в ошибку не печатаем
+        r = subprocess.run(["git", "-C", REPO_DIR, "-c", "http.extraHeader=" + auth, "push", "-q", "-u", "origin", "master"],
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            return
+        print(f"push не прошёл (попытка {attempt + 1}): {r.stderr.strip()[-300:]}", flush=True)
+        time.sleep(10)
+    sys.exit("push не прошёл три раза; коммит есть локально — повторить: python3 tools/album.py push")
 
 
 def build_index():
@@ -338,6 +344,10 @@ def cmd_publish(root, slug=None):
     if not slug and os.path.exists(saved):
         slug = json.load(open(saved))["slug"]
     slug = slug or slugify(os.path.basename(os.path.abspath(root)))
+    # папка сайта <repo>/<slug> не должна совпадать с рабочей папкой альбома: иначе git add заберёт оригиналы
+    site = os.path.abspath(os.path.join(REPO_DIR, slug))
+    if site == os.path.abspath(root) or any(os.path.exists(os.path.join(site, d)) for d in ("work", "src")):
+        sys.exit(f"slug «{slug}» совпадает с папкой с исходниками ({site}); задай другой: --slug <имя>")
     json.dump({"slug": slug}, open(saved, "w"))
     token = open(os.path.join(BASE, "token.txt")).read().strip()
     if os.path.abspath(root) != INDEX_ROOT:              # стоп-лист: людей из never.npz не публикуем

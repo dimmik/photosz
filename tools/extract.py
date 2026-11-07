@@ -133,7 +133,6 @@ def main():
             t = datetime.fromisoformat(r["time"])
             near = min(ph, key=lambda p: abs(p - t))
             r["time"] = t.astimezone(near.tzinfo).isoformat()
-    recs.sort(key=lambda r: datetime.fromisoformat(r["time"]) if "time" in r else datetime.max.replace(tzinfo=timezone.utc))
     recs.sort(key=lambda r: r.get("time", ""))
     with open(os.path.join(work, "meta.json"), "w") as f:
         json.dump(recs, f, indent=1, ensure_ascii=False)
