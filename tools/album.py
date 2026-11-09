@@ -24,6 +24,8 @@ BASE = os.path.dirname(HERE)
 REPO_DIR = BASE                # корень проекта = репозиторий (см. .gitignore)
 REPO = "dimmik/photosz"
 PAGES = "https://dimmik.github.io/photosz"
+CF_CONF = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cloudflare.json")
+CF = "https://photosz.pages.dev" if os.path.exists(CF_CONF) else None    # зеркало на Cloudflare Pages (основное)
 INDEX_ROOT = os.path.join(BASE, ".albums-index")   # источник индекса; вне git, как и всё с ключами
 INDEX_SLUG = "albums"
 SECTIONS = 10                  # цель — до 10 разделов
@@ -313,7 +315,8 @@ def build_index():
                 im.save(os.path.join(media, name), quality=78)
             pics.append(name)
         albums.append({"title": a["title"], "dates": a["dates"], "slug": slug, "key": key,
-                       "url": f"{PAGES}/{slug}/#k={key}", "pics": pics})
+                       "url": f"{PAGES}/{slug}/#k={key}", **({"url_cf": f"{CF}/{slug}/#k={key}"} if CF else {}),
+                       "pics": pics})
     json.dump({"template": "albums.html", "title": "Все альбомы", "dates": f"{len(albums)}", "albums": albums},
               open(os.path.join(INDEX_ROOT, "album", "album.json"), "w", encoding="utf-8"), ensure_ascii=False)
     subprocess.run([sys.executable, os.path.join(HERE, "publish.py"), INDEX_ROOT, "--repo", REPO_DIR, "--slug", INDEX_SLUG],
@@ -328,7 +331,7 @@ def mark_done(n, slug):
     key = open(os.path.join(root_of(slug), "work", "access.key")).read().strip()
     for c in a["candidates"]:
         if c["n"] == n:
-            c["done"] = f"{PAGES}/{slug}/#k={key}"
+            c["done"] = f"{CF or PAGES}/{slug}/#k={key}"
     json.dump(a, open(p, "w", encoding="utf-8"), ensure_ascii=False)
 
 
@@ -378,6 +381,26 @@ def cmd_publish(root, slug=None):
           "Claude-Session: https://claude.ai/code/session_01XarAvaQnY5vkZUXThqQNei")
         cmd_push()
     sha = g("rev-parse", "HEAD", capture_output=True).stdout.strip()
+    a = json.load(open(os.path.join(root, "album", "album.json")))
+    ver = open(os.path.join(REPO_DIR, slug, "version.txt")).read().strip()
+
+    def live(base, tries=30):                            # страница отдаёт новую версию (CDN может опаздывать)
+        for _ in range(tries):
+            try:
+                req = urllib.request.Request(f"{base}/{slug}/version.txt?v={int(time.time())}",
+                                             headers={"User-Agent": "photo-alb/0.1"})   # без UA Cloudflare отвечает 403
+                if urllib.request.urlopen(req, timeout=30).read().decode().strip() == ver:
+                    return True
+            except (urllib.error.URLError, TimeoutError):
+                pass
+            time.sleep(5)
+        return False
+
+    ok_cf = None
+    if CF:                                               # Cloudflare Pages: прямая загрузка, без очередей Actions
+        py("cfpages.py", "deploy")
+        ok_cf = live(CF, 72)                             # новый деплой Cloudflare расходится по сети 2–5 минут
+        print("Cloudflare: " + ("живая страница обновилась" if ok_cf else "страница ещё не обновилась — проверь позже"))
 
     try:
         gh("/pages", token)
@@ -387,32 +410,30 @@ def cmd_publish(root, slug=None):
                                      headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json"})
         urllib.request.urlopen(req, timeout=30)
     print("жду сборку GitHub Pages…", flush=True)
+    gh_state = "timeout"
     for _ in range(60):
         try:
             b = gh("/pages/builds/latest", token)
             if b.get("status") == "built" and b.get("commit") == sha:
+                gh_state = "built"
                 break
-            if b.get("status") == "errored":
-                sys.exit(f"Pages: ошибка сборки {b.get('error')}")
+            if b.get("status") == "errored" and b.get("commit") == sha:
+                gh_state = "errored"
+                break
         except urllib.error.HTTPError:
             pass
         time.sleep(10)
-    album_file = json.loads(re.search(r'<script id="cfg" type="application/json">(.*?)</script>',
-                                      open(os.path.join(REPO_DIR, slug, "index.html")).read(), re.S).group(1))["album"]
-    url = f"{PAGES}/{slug}/"
-    for _ in range(30):                                  # CDN может отдавать старое ещё несколько секунд
-        live = urllib.request.urlopen(f"{url}?v={int(time.time())}", timeout=30).read().decode()
-        if album_file in live:
-            code = urllib.request.urlopen(f"{url}data/{album_file}", timeout=30).status
-            if code == 200:
-                break
-        time.sleep(5)
-    else:
-        sys.exit("живая страница не обновилась — проверь вручную")
-    a = json.load(open(os.path.join(root, "album", "album.json")))
-    print(f"\nГОТОВО\nссылка: {url}#k={key}\nключ:   {key}\n\nТекст для рассылки (RU):\n"
-          f"Фотоальбом «{a['title']}», {a['dates']}: {url}#k={key}\n\nText to share (EN):\n"
-          f"Photo album “{a.get('title_en') or a['title']}”, {a.get('dates_en') or a['dates']}: {url}#k={key}&l=en")
+    ok_gh = gh_state == "built" and live(PAGES)
+    if not ok_gh:
+        msg = f"GitHub Pages: {'ошибка сборки' if gh_state == 'errored' else 'не дождались сборки'} (часто — сбой Actions на стороне GitHub)"
+        if not ok_cf:
+            sys.exit(msg + ", и Cloudflare не обновился — проверь вручную")
+        print(msg + "; Cloudflare работает, ссылка на него уже годится")
+    main_url = f"{CF if ok_cf else PAGES}/{slug}/"
+    print(f"\nГОТОВО\nссылка: {main_url}#k={key}\nключ:   {key}"
+          + (f"\nзапасная (GitHub): {PAGES}/{slug}/#k={key}" + ("" if ok_gh else " — ещё не обновилась") if ok_cf else "")
+          + f"\n\nТекст для рассылки (RU):\nФотоальбом «{a['title']}», {a['dates']}: {main_url}#k={key}\n\nText to share (EN):\n"
+          f"Photo album “{a.get('title_en') or a['title']}”, {a.get('dates_en') or a['dates']}: {main_url}#k={key}&l=en")
 
 
 # ── find ─────────────────────────────────────────────────────────────────────
