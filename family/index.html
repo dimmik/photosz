@@ -241,7 +241,8 @@ footer { max-width: 1240px; margin: 120px auto 0; padding: 32px clamp(16px, 4vw,
 a.map { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
 a.map:hover { color: var(--accent, #c2502e); }
 #lb-sub a.map { pointer-events: auto; }
-.lb-wait { color: #8f877b; font: italic 300 18px/1 var(--serif); }
+.lb-wait { color: #8f877b; font: italic 300 18px/1 var(--serif); text-align: center; }
+.lb-pct { display: block; margin-top: 8px; font: 500 13px/1 var(--sans); font-style: normal; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
 .lb-vwait { position: relative; display: flex; align-items: center; justify-content: center; max-width: 100%; max-height: 100%; }
 .lb-vwait img { max-width: 100%; max-height: 100%; object-fit: contain; opacity: .55; }
 .lb-vwait span { position: absolute; padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,.55); color: #efe8dc; font: italic 300 18px/1 var(--serif); }
@@ -304,14 +305,14 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
           n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "главы" : "глав"),
          days: n => n + " " + (n % 10 === 1 && n % 100 !== 11 ? "день" :
           n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? "дня" : "дней"), day: "День",
-         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", map: "на карте", video: "видео", loadingVideo: "Загрузка видео…", updated: "Альбом обновился", reload: "Обновить", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:", top: "К началу",
+         scroll: "Листать", theme: "Тема", moment: "момент", series: "серия", info: "табличка", loading: "Загрузка…", map: "на карте", video: "видео", loadingVideo: "Загрузка видео…", mb: "МБ", updated: "Альбом обновился", reload: "Обновить", copied: "Ссылка на фото скопирована", copyFail: "Скопируйте ссылку:", top: "К началу",
          wrapEnd: "Конец альбома", wrapEndSub: "дальше — с начала", wrapStart: "Начало альбома", wrapStartSub: "дальше — с конца",
          toStart: "Снова с начала альбома", toEnd: "Последнее фото альбома",
          lockTitle: "Закрытый альбом", lockText: "Введите ключ доступа.", open: "Открыть",
          badKey: "Ключ не подходит", failed: "Не удалось загрузить альбом", other: "EN", lang: "ru"},
     en: {album: "Photo album", chapters: n => n + (n === 1 ? " chapter" : " chapters"),
          days: n => n + (n === 1 ? " day" : " days"), day: "Day",
-         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", map: "map", video: "video", loadingVideo: "Loading video…", updated: "The album was updated", reload: "Refresh", copied: "Link to this photo copied", copyFail: "Copy the link:", top: "Back to top",
+         scroll: "Scroll", theme: "Theme", moment: "moment", series: "series", info: "plaque", loading: "Loading…", map: "map", video: "video", loadingVideo: "Loading video…", mb: "MB", updated: "The album was updated", reload: "Refresh", copied: "Link to this photo copied", copyFail: "Copy the link:", top: "Back to top",
          wrapEnd: "End of the album", wrapEndSub: "next — back to the start", wrapStart: "Start of the album", wrapStartSub: "next — the last photo",
          toStart: "Back to the start of the album", toEnd: "Last photo of the album",
          lockTitle: "Private album", lockText: "Enter the access key.", open: "Open",
@@ -350,19 +351,38 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
         const key = await crypto.subtle.deriveKey(
           {name: "PBKDF2", hash: "SHA-256", salt: Uint8Array.from(atob(CFG.salt), c => c.charCodeAt(0)), iterations: CFG.iter},
           base, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
-        const dec = async (file, opts) => {
+        // загрузка частями: сколько уже скачано — видно в просмотре (got[name] = [байт, всего])
+        const got = {}, subs = {};
+        const dec = async (file, opts, name) => {
           const r = await fetch("data/" + file, opts);
           if (!r.ok) throw new Error("fetch " + r.status);
-          const buf = new Uint8Array(await r.arrayBuffer());
+          const total = +r.headers.get("content-length") || 0;
+          let buf;
+          if (name && r.body && r.body.getReader) {
+            const rd = r.body.getReader(), parts = [];
+            let n = 0;
+            for (;;) {
+              const {done, value} = await rd.read();
+              if (done) break;
+              parts.push(value); n += value.length;
+              got[name] = [n, Math.max(total, n)];
+              (subs[name] || []).forEach(f => f(n, Math.max(total, n)));
+            }
+            buf = new Uint8Array(n); let o = 0;
+            for (const x of parts) { buf.set(x, o); o += x.length; }
+          } else buf = new Uint8Array(await r.arrayBuffer());
           return crypto.subtle.decrypt({name: "AES-GCM", iv: buf.slice(0, 12)}, key, buf.slice(12));
         };
+        const watch = (name, f) => { (subs[name] = subs[name] || []).push(f); if (got[name]) f(...got[name]);
+          return () => { subs[name] = subs[name].filter(g => g !== f); }; };
         const album = JSON.parse(new TextDecoder().decode(await dec(CFG.album, {cache: "no-cache"})));   // имя файла постоянное: иначе браузер 10 минут показывает старый альбом
         try { localStorage.setItem(store, norm(k)); } catch (e) {}
         lock.hidden = true;
         const cache = {};
         const types = {jpg: "image/jpeg", mp4: "video/mp4"};
-        render(album, n => cache[n] || (cache[n] = dec(album.files[n]).then(b =>
-          URL.createObjectURL(new Blob([b], {type: types[n.split(".").pop()]})))), norm(k).match(/.{1,4}/g).join("-"));
+        // low — плитки ленты: открытое в просмотре фото не стоит в очереди за ними
+        render(album, (n, low) => cache[n] || (cache[n] = dec(album.files[n], low ? {priority: "low"} : {priority: "high"}, n).then(b =>
+          URL.createObjectURL(new Blob([b], {type: types[n.split(".").pop()]})))), norm(k).match(/.{1,4}/g).join("-"), watch);
         return true;
       } catch (e) {
         if (!quiet) err.textContent = e.name === "OperationError" ? T.badKey : T.failed;
@@ -385,7 +405,7 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
     });
   }
 
-  function render(A, url, KEY) {
+  function render(A, url, KEY, watch = () => () => {}) {
   const flat = [];
   const app = document.getElementById("app");
   function draw() {
@@ -531,7 +551,7 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
   // ── ленивая загрузка: картинка получает адрес, когда плитка подходит к экрану ──
   function load(img) {
     const big = img.dataset.full && img.parentElement.clientWidth * (devicePixelRatio || 1) > 900;
-    url(big ? img.dataset.full : img.dataset.name).then(u => {
+    url(big ? img.dataset.full : img.dataset.name, true).then(u => {
       img.addEventListener("load", () => img.classList.add("loaded"), {once: true});
       img.src = u;
     });
@@ -568,11 +588,17 @@ if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.path
     const it = flat[cur], my = cur;
     const isV = it.type === "video";
     // видео: сразу видно, что грузится именно видео; как только расшифрован постер — он под надписью
-    stage.innerHTML = `<div class="lb-wait">${isV ? "▶ " + T.loadingVideo : T.loading}</div>`;
+    stage.innerHTML = `<div class="lb-wait">${isV ? "▶ " + T.loadingVideo : T.loading}<i class="lb-pct"></i></div>`;
     zoom(1);
     if (isV) url(it.id + "_p.jpg").then(p => { if (my === cur && stage.querySelector(".lb-wait"))
-      stage.innerHTML = `<div class="lb-vwait"><img src="${p}" alt=""><span>▶ ${T.loadingVideo}</span></div>`; });
+      stage.innerHTML = `<div class="lb-vwait"><img src="${p}" alt=""><span>▶ ${T.loadingVideo}<i class="lb-pct"></i></span></div>`; });
+    // процент и мегабайты рядом с «Загрузка…»: видно, что идёт, а не зависло
+    const mb = b => (b / 1048576).toFixed(b < 10485760 ? 1 : 0).replace(".", L === "ru" ? "," : ".");
+    const unwatch = watch(it.id + (isV ? ".mp4" : ".jpg"), (n, t) => {
+      const el = my === cur && stage.querySelector(".lb-pct");
+      if (el) el.textContent = ` ${Math.floor(n * 100 / t)}% · ${mb(n)} / ${mb(t)} ${T.mb}`; });
     Promise.all([url(it.id + (isV ? ".mp4" : ".jpg")), isV ? url(it.id + "_p.jpg") : null]).then(([u, p]) => {
+      unwatch();
       if (my !== cur || !lb.classList.contains("open")) return drop();
       stage.innerHTML = isV
         ? `<video src="${u}" poster="${p}" controls autoplay loop playsinline></video>`
