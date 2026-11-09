@@ -199,7 +199,7 @@ def main():
     # обложка не повторяется в главе (если в главе останется ≥ 3 фото)
     for c in chapters:
         ph = [it for it in c["items"] if it["type"] == "photo"]
-        if any(it["id"] == cover for it in ph) and len(ph) > 3:
+        if any(it["id"] == cover for it in ph) and len(ph) > 3 and not overrides.get("cover_in_chapter"):
             c["items"] = [it for it in c["items"] if it["id"] != cover]
             if not any(it.get("hero") for it in c["items"]):
                 land = [it for it in c["items"] if it["type"] == "photo" and it["w"] > it["h"]]
