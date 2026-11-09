@@ -3,6 +3,12 @@
 Основной сценарий — скилл `photo-album` (`.claude/skills/photo-album/SKILL.md`).
 Публичные правила — `plan.md`. Личные детали и метрики — `plan.private.md`, его нет в git.
 
+## Хостинг
+
+Основной адрес — Cloudflare Pages (`https://photosz.pages.dev/<slug>/`), загрузка напрямую `tools/cfpages.py`
+(без GitHub Actions). Запасной — GitHub Pages (`https://dimmik.github.io/photosz/<slug>/`), он же хранит историю.
+`album.py publish` выкладывает в оба места.
+
 ## Новый компьютер
 
 Признак: нет папки `.faces/` и рабочих папок альбомов (`*/work/`). Тогда:
@@ -16,7 +22,9 @@
    восстановится и `backup/archive.bin`.
 3. Попросить пользователя положить в `token.txt` новый fine-grained токен на этот репозиторий:
    Contents, Pages и Administration на запись.
-4. `bash tools/setup.sh --check` должен показать «стоп-лист есть». Без стоп-листа публикация не пойдёт.
+4. Попросить пользователя положить в `claudflare_t.txt` API-токен Cloudflare (Account → Cloudflare Pages → Edit).
+   ID аккаунта (`cloudflare.json`) восстановится из копии. Без токена публикация идёт только на GitHub Pages.
+5. `bash tools/setup.sh --check` должен показать «стоп-лист есть». Без стоп-листа публикация не пойдёт.
 
 Оригиналов фото в копии нет. Чтобы править старый альбом, пользователь заново кладёт его
 зип в папку с тем же именем.

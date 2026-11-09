@@ -150,6 +150,15 @@ description: Делает из зипа/папки с фото и видео п�
 3. `python3 tools/drone.py album`, затем `album.py build drone` и `album.py publish drone`
    (slug закреплён: `from-above`; slug не может совпадать с папкой исходников — publish это проверяет). Стоп-лист лиц проверяется при публикации, как всегда.
 
+## Хостинг: Cloudflare + GitHub
+
+`album.py publish` коммитит и пушит в GitHub, затем `tools/cfpages.py deploy` выкладывает HEAD на Cloudflare Pages
+(`https://photosz.pages.dev`). Это основной адрес: ссылки для рассылки — на него. GitHub Pages — запасной;
+если у GitHub сбой Actions (сборка в очереди или «errored»), публикация не падает, а говорит об этом.
+Повторить выкладку на Cloudflare отдельно: `python3 tools/cfpages.py deploy`, состояние — `cfpages.py status`.
+Токен — `claudflare_t.txt`, ID аккаунта — `cloudflare.json` (оба не в git; json — в зашифрованной копии).
+Запросы к сайту на Cloudflare — с заголовком User-Agent, иначе 403.
+
 ## Резервная копия
 
 Всё, чего нет в репозитории, — память Claude, `plan.private.md`, кандидаты, `tools/archive.py`,

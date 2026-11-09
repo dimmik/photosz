@@ -41,5 +41,6 @@ fi
 CHROME="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
 if [ -x "$CHROME" ] || [ -f "$CHROME" ]; then say "Chrome (скриншоты)" "есть"; else say "Chrome (скриншоты)" "нет — сборка работает, но без скриншотов проверки"; fi
 [ -f token.txt ] && say "token.txt" "есть" || say "token.txt" "НЕТ — нужен новый fine-grained токен на репозиторий"
+[ -f claudflare_t.txt ] && say "Cloudflare токен" "есть" || say "Cloudflare токен" "нет — публикация только на GitHub Pages"
 [ -f .faces/never.npz ] && say "стоп-лист" "есть" || say "стоп-лист" "НЕТ — нужно восстановить копию: python3 tools/backup.py restore"
 [ "$ok" = 1 ] && echo "ГОТОВО" || { echo "ЕСТЬ ПРОБЛЕМЫ — см. выше"; exit 1; }
