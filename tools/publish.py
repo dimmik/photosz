@@ -22,13 +22,6 @@ ITER = 250_000
 ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"   # Crockford base32: без I, L, O, U
 TPL = os.path.join(os.path.dirname(__file__), "template.html")
 
-ROOT_INDEX = """<!doctype html><html lang="ru"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>·</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M19 50l-3 11M45 50l3 11' stroke='%232b211a' stroke-width='4.5' stroke-linecap='round'/%3E%3Crect x='21' y='5' width='15' height='10' rx='3' fill='%232b211a'/%3E%3Crect x='3' y='11' width='58' height='41' rx='11' fill='%23e8643a'/%3E%3Ccircle cx='52' cy='20' r='3.5' fill='%23ffd84a'/%3E%3Ccircle cx='31' cy='32' r='16' fill='%23fff' stroke='%232b211a' stroke-width='3.5'/%3E%3Ccircle cx='36' cy='28' r='8' fill='%232b211a'/%3E%3Ccircle cx='38.5' cy='25.5' r='2.6' fill='%23fff'/%3E%3Cpath d='M14 22q6-8 16-7' stroke='%232b211a' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4efe6;color:#8f877b;
-font:16px system-ui}@media(prefers-color-scheme:dark){body{background:#15130f}}</style></head>
-<body>·</body></html>
-"""
 
 
 def access_key(work):
@@ -90,11 +83,12 @@ def main():
         f.write(page)
 
     # корень репозитория: пустая страница, robots, без Jekyll
-    for name, body in (("index.html", ROOT_INDEX), ("robots.txt", "User-agent: *\nDisallow: /\n"),
-                       (".nojekyll", "")):
+    root_page = open(os.path.join(os.path.dirname(TPL), "root.html"), encoding="utf-8").read()   # форма ключа → «Все альбомы»
+    for name, body, always in (("index.html", root_page, True), ("robots.txt", "User-agent: *\nDisallow: /\n", False),
+                               (".nojekyll", "", False)):
         p = os.path.join(a.repo, name)
-        if not os.path.exists(p):
-            open(p, "w").write(body)
+        if always or not os.path.exists(p):
+            open(p, "w", encoding="utf-8").write(body)
 
     size = sum(os.path.getsize(os.path.join(data_dir, f)) for f in os.listdir(data_dir))
     print(f"{len(files)} файлов → {out} ({size / 1e6:.1f} МБ)")
