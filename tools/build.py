@@ -9,7 +9,7 @@
 ({id: {"ru": "Маша", "en": "Masha"}} — кто на фото, со слов пользователя).
 Пишет <папка>/album/index.html, album/album.json, album/media/*.
 """
-import argparse, html, json, os, re, subprocess
+import argparse, threading, html, json, os, re, subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
@@ -71,13 +71,23 @@ def photo_job(src, dst_dir, fid):
         return im.size
 
 
+VIDEO_SLOTS = threading.Semaphore(2)   # ffmpeg тяжёлый: больше двух сразу — нехватка памяти (SIGKILL)
+
+
 def video_job(src, dst_dir, fid):
+    with VIDEO_SLOTS:
+        return _video_job(src, dst_dir, fid)
+
+
+def _video_job(src, dst_dir, fid):
     out, poster = os.path.join(dst_dir, fid + ".mp4"), os.path.join(dst_dir, fid + "_p.jpg")
-    if not os.path.exists(out):
+    if not os.path.exists(out):                          # пишем во временный файл: оборванный не примем за готовый
+        tmp = out + ".part.mp4"
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-vf", "scale='min(1280,iw)':-2",
                         "-c:v", "libx264", "-crf", "26", "-preset", "medium", "-pix_fmt", "yuv420p",
                         "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", "-map_metadata", "-1",
-                        out], check=True)
+                        tmp], check=True)
+        os.replace(tmp, out)
     if not os.path.exists(poster):
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "0.5", "-i", out, "-frames:v", "1",
                         "-q:v", "4", poster], check=True)
@@ -106,7 +116,7 @@ def main():
     for s in sections:
         key = f"s{s['n']:02d}"
         p = {**picks.get(key, {}), **overrides.get(key, {})}
-        if p.get("drop") or not p.get("photos"):
+        if p.get("drop") or not (p.get("photos") or p.get("videos")):
             continue
         items = []
         for ph in p["photos"]:
@@ -160,9 +170,9 @@ def main():
             jobs.append((it, fn, src))
         t0 = datetime.fromisoformat(s["start"])
         chapter_years.append(t0.year)
-        chapters.append({"title": p.get("title", ""), "desc": p.get("desc", ""), "day": fmt_day(t0),
-                         **en(p, "title"), **en(p, "desc"), "day_en": fmt_day_en(t0),
-                         "time": t0.strftime("%H:%M"), "place": p.get("place") or place_label(s["place"]),
+        chapters.append({"title": p.get("title", ""), "desc": p.get("desc", ""), "day": p.get("day") or fmt_day(t0),
+                         **en(p, "title"), **en(p, "desc"), "day_en": p.get("day_en") or fmt_day_en(t0),
+                         "time": p["time"] if "time" in p else t0.strftime("%H:%M"),   # day/time в правках — если дата неточная "place": p.get("place") or place_label(s["place"]),
                          "place_en": p.get("place_en") or place_label(s.get("place_en") or s["place"]),
                          "items": items, **({"dayn": s["day"]} if "day" in s else {}),
                          **({"lat": round(s["lat"], 4), "lon": round(s["lon"], 4)} if s.get("lat") else {}),
@@ -210,8 +220,10 @@ def main():
         dates = f"{fmt_day(t_first)} {t_first.year} – {fmt_day(t_last)} {t_last.year}"
         dates_en = f"{fmt_day_en(t_first)}, {t_first.year} – {fmt_day_en(t_last)}, {t_last.year}"
         for c, y in zip(chapters, chapter_years):
-            c["day"] += f" {y}"
-            c["day_en"] += f", {y}"
+            if str(y) not in c["day"]:                   # дата из правок может уже содержать год
+                c["day"] += f" {y}"
+                c["day_en"] += f", {y}"
+    dates, dates_en = overrides.get("dates") or dates, overrides.get("dates_en") or dates_en   # если начало неточное
     album = {"title": a.title or picks.get("album_title") or os.path.basename(os.path.abspath(root)), "dates": dates,
              "title_en": picks.get("album_title_en") or a.title or picks.get("album_title") or "", "dates_en": dates_en,
              "cover": cover,
