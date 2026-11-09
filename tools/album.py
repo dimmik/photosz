@@ -85,7 +85,7 @@ def write_prompt(root, name, text):
 
 # ── prepare ──────────────────────────────────────────────────────────────────
 
-def cmd_prepare(path):
+def cmd_prepare(path, keep_all=False):
     if os.path.isfile(path) and path.lower().endswith(".zip"):
         root = os.path.dirname(os.path.abspath(path))
         if root == BASE:                                 # зип в корне проекта — переносим в свою папку
@@ -114,7 +114,7 @@ def cmd_prepare(path):
                 with zf.open(m) as fi, open(os.path.join(src, name), "wb") as fo:
                     fo.write(fi.read())
     py("extract.py", root)
-    py("select.py", root, "sections", "--sections", str(DRAFT))
+    py("select.py", root, "sections", "--sections", str(DRAFT), *(["--keep-all"] if keep_all else []))
 
     work = os.path.join(root, "work")
     sheets = sorted(glob.glob(os.path.join(work, "pass1", "p*.jpg")))
@@ -470,10 +470,11 @@ def main():
     ap.add_argument("path", nargs="?", default=".")
     ap.add_argument("pairs", nargs="*")                  # name: G1=Маша/Masha …
     ap.add_argument("--slug")
+    ap.add_argument("--keep-all", action="store_true", help="prepare: не выбрасывать мелкие эпизоды (подборка за годы)")
     ap.add_argument("--title")
     a = ap.parse_args()
     a.path = os.path.abspath(a.path)
-    {"prepare": lambda: cmd_prepare(a.path), "shortlist": lambda: cmd_shortlist(a.path),
+    {"prepare": lambda: cmd_prepare(a.path, a.keep_all), "shortlist": lambda: cmd_shortlist(a.path),
      "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug),
      "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
      "extras": lambda: cmd_extras(a.path), "index": lambda: (build_index(), cmd_publish(INDEX_ROOT, INDEX_SLUG)),

@@ -90,8 +90,15 @@ def split_largest(out, min_part=25):
     return False
 
 
-def build_sections(segs, n):
-    # мелкие эпизоды вливаем в соседа того же дня (если близко по времени и месту), иначе выбрасываем
+def build_sections(segs, n, keep_all=False):
+    # мелкие эпизоды вливаем в соседа того же дня (если близко по времени и месту), иначе выбрасываем;
+    # keep_all (подборка за годы, где много одиночных кадров) — ничего не выбрасываем, сливаем и через дни
+    if keep_all:
+        out = [list(s) for s in segs]
+        while len(out) > n:
+            _, i = min((len(out[i]) + len(out[i + 1]), i) for i in range(len(out) - 1))
+            out[i:i + 2] = [out[i] + out[i + 1]]
+        return out
     out = []
     for s in segs:
         if out and out[-1][-1]["t"].date() == s[0]["t"].date() and s[0]["t"] - out[-1][-1]["t"] < 3 * GAP \
@@ -223,10 +230,10 @@ def load(root):
     return work, items
 
 
-def cmd_sections(root, n):
+def cmd_sections(root, n, keep_all=False):
     work, items = load(root)
     fill_gps(items)
-    secs = build_sections(segment(items), n)
+    secs = build_sections(segment(items), n, keep_all)
     cache_p = os.path.join(work, "geocache.json")
     cache = json.load(open(cache_p)) if os.path.exists(cache_p) else {}
     out_dir = os.path.join(work, "pass1")
@@ -536,9 +543,10 @@ def main():
     ap.add_argument("cmd", choices=["sections", "shortlist", "byday", "plan"])
     ap.add_argument("--sections", type=int, default=10)
     ap.add_argument("--candidates", type=int, default=8)
+    ap.add_argument("--keep-all", action="store_true", help="не выбрасывать мелкие эпизоды (подборка за годы)")
     a = ap.parse_args()
     if a.cmd == "sections":
-        cmd_sections(a.root, a.sections)
+        cmd_sections(a.root, a.sections, a.keep_all)
     elif a.cmd == "byday":
         cmd_byday(a.root)
     elif a.cmd == "plan":
