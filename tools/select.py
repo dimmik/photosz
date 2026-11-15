@@ -452,14 +452,15 @@ def cmd_shortlist(root, k):
         if "place_en" not in s:
             s["place_en"] = place_name(s["lat"], s["lon"], cache, "en")
     json.dump(cache, open(cache_p, "w"), ensure_ascii=False, indent=1)
-    # work/boost.json: {"must": [id…]} — обязательно в альбом (номера — s["must"]), {"extra": [id…]} — в кандидаты
+    # work/boost.json: {"must": [id…]} — обязательно в альбом (номера — s["must"], видео — s["must_videos"]),
+    # {"extra": [id…]} — в кандидаты
     bp = os.path.join(work, "boost.json")
     boost = json.load(open(bp)) if os.path.exists(bp) else {}
     placed = {f for s in sections for f in s["photos"]}
     for s in sections:
         t0, t1 = datetime.fromisoformat(s["start"]), datetime.fromisoformat(s["end"])
         # кадр раздела; или в его времени, если ни в одном разделе (выпал как повтор) — глава по плану бывает из разных дней
-        inside = lambda f: f in s["photos"] or (f in meta and f not in placed and
+        inside = lambda f: f in s["photos"] or (f in meta and f not in placed and meta[f]["type"] == "photo" and
                                                t0 <= datetime.fromisoformat(meta[f]["time"]) <= t1)
         must = [f for f in boost.get("must", []) if inside(f)]
         # лучшие по оценке, без повторов: одинаковое описание или похожий pHash — повтор
@@ -498,9 +499,14 @@ def cmd_shortlist(root, k):
             way.append(f)
         way.sort(key=lambda f: meta[f]["time"])
         s["way_candidates"] = way
+        # видео: три лучших с оценкой ≥ 5; из boost.json — "must" обязательно, "extra" в кандидаты при любой оценке
+        vmust = [v for v in boost.get("must", []) if v in s["videos"]]
+        vext = [v for v in boost.get("extra", []) if v in s["videos"] and v not in vmust]
         vids = sorted(s["videos"], key=lambda v: max(sc(v), fun(v)), reverse=True)[:3]
-        vids = [v for v in vids if max(sc(v), fun(v)) >= 5]
+        vids = [v for v in vids if max(sc(v), fun(v)) >= 5 and v not in vmust + vext]
+        vids = (vmust + vext + vids)[:max(3, len(vmust + vext))]
         vids.sort(key=lambda f: meta[f]["time"])
+        s["must_videos"] = [vids.index(v) + 1 for v in vmust]
         s["candidates"], s["cand_videos"] = cand, vids
         s["best"] = max([sc(f) for f in cand + vids] or [0])
         # смешная серия раздела (лучшая по fun) — идёт в альбом целиком выбранными кадрами, сверх лимита

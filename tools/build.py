@@ -7,13 +7,16 @@
 необязательный work/overrides.json (ручные правки, имеют приоритет над picks.json).
 Дополнения: work/signs.json (таблички + снимки объекта, см. extras.py) и work/people.json
 ({id: {"ru": "Маша", "en": "Masha"}} — кто на фото, со слов пользователя).
+Цвет: work/grade.json — {"<id>": 1.0, …}: «сочные» виды (уровни, вибрация цвета, контраст, резкость);
+число — сила (0.5 мягко, 1 обычно, 1.5 сильно). Сменили силу — файл пересоберётся сам.
 Пишет <папка>/album/index.html, album/album.json, album/media/*.
 """
 import argparse, threading, html, json, os, re, subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
-from PIL import Image, ImageOps
+import numpy as np
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 
 try:                                     # HEIC/HEIF (iPhone)
     from pillow_heif import register_heif_opener
@@ -59,11 +62,34 @@ def fmt_day(t):
     return f"{t.day} {MONTHS[t.month - 1]}"
 
 
+GRADE = {}        # id → сила «сочного» цвета (из work/grade.json)
+
+
+def vivid(im, k=1.0):
+    """Виды «как с хорошей камеры»: уровни без сдвига оттенка, вибрация (бледные цвета сильнее,
+    уже яркие и кожа почти не трогаются), лёгкий S-контраст и резкость после уменьшения."""
+    im = ImageOps.autocontrast(im, cutoff=(0.3, 0.6), preserve_tone=True)
+    a = np.asarray(im, dtype=np.float32) / 255.0
+    lum = a @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    sat = a.max(axis=2) - a.min(axis=2)
+    gain = 1 + k * (0.10 + 0.35 * (1 - sat) ** 2)            # вибрация: чем бледнее, тем сильнее
+    w = np.clip((sat - 0.04) / 0.10, 0, 1)                   # почти серое (снег, облака) не красим в синеву
+    gain = 1 + (gain - 1) * w * w * (3 - 2 * w)
+    a = lum[..., None] + (a - lum[..., None]) * gain[..., None]
+    a = np.clip(a, 0, 1)
+    a = a + 0.10 * k * (a - a * a) * (2 * a - 1) * 2          # мягкий S: глубже тени, плотнее света
+    im = Image.fromarray((np.clip(a, 0, 1) * 255 + 0.5).astype(np.uint8))
+    im = ImageEnhance.Contrast(im).enhance(1 + 0.04 * k)
+    return im
+
+
 def photo_job(src, dst_dir, fid):
     full, thumb = os.path.join(dst_dir, fid + ".jpg"), os.path.join(dst_dir, fid + "_t.jpg")
     if not (os.path.exists(full) and os.path.exists(thumb)):
         im = ImageOps.exif_transpose(Image.open(src)).convert("RGB")   # EXIF (и GPS) не переносим
         im.thumbnail((FULL, FULL), Image.LANCZOS)
+        if GRADE.get(fid):
+            im = vivid(im, GRADE[fid]).filter(ImageFilter.UnsharpMask(radius=1.2, percent=55, threshold=2))
         im.save(full, quality=84, optimize=True, progressive=True)
         im.thumbnail((THUMB, THUMB), Image.LANCZOS)
         im.save(thumb, quality=80, optimize=True, progressive=True)
@@ -111,6 +137,16 @@ def main():
     load = lambda name: json.load(open(os.path.join(work, name))) if os.path.exists(os.path.join(work, name)) else {}
     signs, people = load("signs.json"), load("people.json")
     smap = load(os.path.join("extras", "signs_map.json"))
+    GRADE.update({k: float(v) for k, v in load("grade.json").items() if not k.startswith("_")})
+    done_p = os.path.join(work, "graded.json")               # с какой силой собран каждый файл в media/
+    done = json.load(open(done_p)) if os.path.exists(done_p) else {}
+    for fid in set(done) | set(GRADE):
+        if done.get(fid) != GRADE.get(fid):
+            for suf in (".jpg", "_t.jpg"):
+                if os.path.exists(os.path.join(media, fid + suf)):
+                    os.remove(os.path.join(media, fid + suf))
+    with open(done_p, "w") as f:
+        json.dump({k: v for k, v in GRADE.items() if v}, f)
 
     chapters, jobs, chapter_years = [], [], []
     for s in sections:

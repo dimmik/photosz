@@ -182,6 +182,8 @@ def cmd_shortlist(root):
             lines.append("  fun: " + "; ".join(f"F{i}={d(f)}" for i, f in enumerate(s["fun_candidates"], 1)))
         if s.get("way_candidates"):
             lines.append("  on the way: " + "; ".join(f"W{i}={d(f)}" for i, f in enumerate(s["way_candidates"], 1)))
+        if s.get("must_videos"):
+            lines.append("  MUST include videos (the owner asked for them): " + ", ".join(f"V{i}" for i in s["must_videos"]))
         if s.get("cand_videos"):
             lines.append("  videos: " + "; ".join(f"V{i}={d(f)} ({meta[f]['duration']}s)"
                                                 for i, f in enumerate(s["cand_videos"], 1)))
