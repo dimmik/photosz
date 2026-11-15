@@ -8,11 +8,12 @@ API-эквивалентную стоимость и время (общее и �
   python3 tools/ai_metrics.py                       # всё время
   python3 tools/ai_metrics.py --since 2026-10-24T21:00+02:00 --until ...
 """
-import argparse, glob, json, os
+import argparse, glob, json, os, re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-PROJECT_DIR = os.path.expanduser("~/.claude/projects/-mnt-c-suth-photo-alb")
+PROJECT_DIR = os.path.join(os.path.expanduser("~"), ".claude", "projects",       # путь проекта, где всё кроме букв и цифр — «-»
+                           re.sub(r"[^A-Za-z0-9]", "-", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 IDLE_GAP = timedelta(minutes=5)
 
 # $ за 1M токенов: input, output, cache read. Запись в кеш: 5m = 1.25×input, 1h = 2×input.
