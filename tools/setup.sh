@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Установка всего, что нужно пайплайну, на новом компьютере (Ubuntu / WSL).
+# Установка всего, что нужно пайплайну, на новом компьютере (Ubuntu/Debian или WSL).
 #   bash tools/setup.sh          поставить и проверить
 #   bash tools/setup.sh --check  только проверить, ничего не ставить
 set -u
@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 CHECK=${1:-}
 
 if [ "$CHECK" != "--check" ]; then
+  command -v apt-get >/dev/null || { echo "нет apt-get: поставь вручную python3, pip, ffmpeg, git, curl, шрифты DejaVu"; exit 1; }
   sudo apt-get update -q
   sudo apt-get install -y -q python3 python3-pip ffmpeg git curl fonts-dejavu-core
   # Ubuntu 23.04+ запрещает pip в системный Python без флага (PEP 668)
@@ -39,7 +40,7 @@ else
   n=$(ls .faces/models/*.onnx 2>/dev/null | wc -l); say "модели лиц" "$n из 2 (скачаются сами)"
 fi
 CHROME="/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
-if [ -x "$CHROME" ] || [ -f "$CHROME" ]; then say "Chrome (скриншоты)" "есть"; else say "Chrome (скриншоты)" "нет — сборка работает, но без скриншотов проверки"; fi
+if [ -f "$CHROME" ] || command -v google-chrome google-chrome-stable chromium chromium-browser >/dev/null 2>&1; then say "Chrome (скриншоты)" "есть"; else say "Chrome (скриншоты)" "нет — сборка работает, но без скриншотов проверки"; fi
 [ -f token.txt ] && say "token.txt" "есть" || say "token.txt" "НЕТ — нужен новый fine-grained токен на репозиторий"
 [ -f claudflare_t.txt ] && say "Cloudflare токен" "есть" || say "Cloudflare токен" "нет — публикация только на GitHub Pages"
 [ -f .faces/never.npz ] && say "стоп-лист" "есть" || say "стоп-лист" "НЕТ — нужно восстановить копию: python3 tools/backup.py restore"

@@ -144,7 +144,32 @@ def parts(which):
     return ["core", "archive"] if which == "all" else [which]
 
 
+MIRROR = os.path.join(BASE, ".claude-memory")         # открытая копия памяти внутри папки проекта (вне git)
+
+
+def mirror_memory():
+    """Память Claude живёт вне проекта (~/.claude/...). Копия в папке переезжает вместе с ней:
+    на новом компьютере tools/restore_here.sh кладёт её на место без фразы."""
+    src = memory_dir()
+    if not os.path.isdir(src) or not os.listdir(src):
+        return
+    os.makedirs(MIRROR, exist_ok=True)
+    have = set()
+    for f in os.listdir(src):
+        p = os.path.join(src, f)
+        if os.path.isfile(p):
+            have.add(f)
+            data = open(p, "rb").read()
+            t = os.path.join(MIRROR, f)
+            if not os.path.exists(t) or open(t, "rb").read() != data:
+                open(t, "wb").write(data)
+    for f in os.listdir(MIRROR):                      # удалённые воспоминания удаляем и из копии
+        if f not in have:
+            os.remove(os.path.join(MIRROR, f))
+
+
 def cmd_save(which):
+    mirror_memory()
     cfg = load_cfg()
     state = json.load(open(STATE)) if os.path.exists(STATE) else {}
     for part in parts(which):
