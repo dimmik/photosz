@@ -344,7 +344,7 @@ def root_of(slug):
     sys.exit(f"нет альбома {slug}")
 
 
-def cmd_publish(root, slug=None):
+def cmd_publish(root, slug=None, allow_remove=""):
     saved = os.path.join(root, "work", "publish.json")    # slug закрепляется при первой публикации
     if not slug and os.path.exists(saved):
         slug = json.load(open(saved))["slug"]
@@ -357,6 +357,14 @@ def cmd_publish(root, slug=None):
     token = open(os.path.join(BASE, "token.txt")).read().strip()
     if os.path.abspath(root) != INDEX_ROOT:              # стоп-лист: людей из never.npz не публикуем
         py("faces.py", root, "guard")
+        # из уже выданного альбома ничего не пропадает молча: только с явного «да» пользователя (--allow-remove id,id)
+        import published
+        ok = {x.strip() for x in allow_remove.split(",") if x.strip()}
+        gone = [f for f in published.missing(root, slug) if f not in ok]
+        if gone:
+            sys.exit("СТОП: эти кадры уже были в опубликованном альбоме, а сейчас их нет:\n  " + "\n  ".join(gone) +
+                     "\nВерни их (overrides.json) или, если пользователь явно согласился убрать, "
+                     "повтори с --allow-remove " + ",".join(gone))
     out = subprocess.run([sys.executable, os.path.join(HERE, "publish.py"), root, "--repo", REPO_DIR, "--slug", slug],
                          check=True, capture_output=True, text=True).stdout
     key = re.search(r"^KEY (\S+)", out, re.M).group(1)
@@ -495,10 +503,11 @@ def main():
     ap.add_argument("--slug")
     ap.add_argument("--keep-all", action="store_true", help="prepare: не выбрасывать мелкие эпизоды (подборка за годы)")
     ap.add_argument("--title")
+    ap.add_argument("--allow-remove", default="", help="publish: id через запятую, которые пользователь явно разрешил убрать")
     a = ap.parse_args()
     a.path = os.path.abspath(a.path)
     {"prepare": lambda: cmd_prepare(a.path, a.keep_all), "shortlist": lambda: cmd_shortlist(a.path),
-     "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug),
+     "build": lambda: cmd_build(a.path, a.title), "publish": lambda: cmd_publish(a.path, a.slug, a.allow_remove),
      "status": lambda: cmd_status(a.path), "find": cmd_find, "push": cmd_push,
      "extras": lambda: cmd_extras(a.path), "index": lambda: (build_index(), cmd_publish(INDEX_ROOT, INDEX_SLUG)),
      "done": lambda: mark_done(int(os.path.basename(a.path)), a.pairs[0]), "people": lambda: cmd_people(a.path), "name": lambda: py("faces.py", a.path, "name", *a.pairs),
