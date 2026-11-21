@@ -6,7 +6,7 @@
 Показывает кадры альбома, у которых в id есть --match (например, все с второго телефона), сеткой по
 времени. Те, что уже в альбоме, помечены «уже в альбоме». Человек отмечает «★ хочу в альбом»
 (для невзятых) или «✕ убрать» (для взятых), может оставить комментарий и жмёт «Отправить» один раз.
-Решение пишется в <альбом>/work/pick_result.json, сервер и туннель гаснут. Без отправки — через --minutes.
+Решение (отметки, подписи к кадрам, название альбома, комментарий) пишется в <альбом>/work/pick_result.json, сервер и туннель гаснут. Без отправки — через --minutes.
 
 Сервер — на 127.0.0.1, путь случайный (он и есть ключ), запросы не логируются. С --tunnel — cloudflared
 quick tunnel (https://….trycloudflare.com). Картинки — уменьшенные копии без EXIF/GPS (work/pick/),
@@ -95,6 +95,11 @@ button{font:inherit;border:0;border-radius:99px;padding:6px 11px;cursor:pointer;
 .view .ctl button{background:#3a332b;color:#fff;padding:10px 16px}
 .view .ctl .tg.add{background:var(--acc)} .view .ctl .tg.remove{background:var(--bad)}
 .view .cap{color:#d8cfc3;font-size:14px;text-align:center;padding-top:10px}
+.ttl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 0;font-size:14px;color:var(--mute)}
+.ttl input,.view .note{font:inherit;border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--card);color:var(--ink)}
+.ttl input{flex:1 1 260px}
+.view .note{width:min(640px,92vw);margin:8px auto 0;display:block;background:#2a241e;color:#fff;border-color:#4a4036}
+.pen{position:absolute;right:6px;bottom:44px;font-size:13px;padding:2px 7px;border-radius:99px;background:var(--acc);color:#fff}
 .thanks{max-width:520px;margin:18vh auto;padding:0 16px;text-align:center}
 </style></head><body>
 <header>
@@ -102,20 +107,23 @@ button{font:inherit;border:0;border-radius:99px;padding:6px 11px;cursor:pointer;
  <p class="lead">Это кадры с твоего телефона. Отметь <b>★ в альбом</b> те, которые точно должны попасть в альбом.
  Если какой-то из уже взятых не нравится, нажми у него <b>✕ убрать</b>. Нажми на фото или видео, чтобы посмотреть крупно.</p>
  <div class="legend"><span><b>@@N_IN@@</b> уже в альбоме</span><span><b>@@N_ALL@@</b> всего кадров</span></div>
+ <label class="ttl">Название альбома: <input id="at" value="@@ATITLE@@" placeholder="как назвать альбом"></label>
 </header>
 <main id="m"></main>
 <div class="dock"><div class="in">
- <textarea id="c" placeholder="Комментарий, если хочется (что подписать, что не показывать…)"></textarea>
+ <textarea id="c" placeholder="Общий комментарий, если хочется (что не показывать, что важно…). Подпись к кадру — в его просмотре."></textarea>
  <span class="count" id="cnt"></span>
  <button class="send" id="s">Отправить</button>
 </div></div>
 <div class="view" id="v"><div class="cap" id="vc"></div><img id="vi" alt=""><video id="vv" controls playsinline preload="metadata"></video>
+ <input class="note" id="vnote" placeholder="Подпись или комментарий к этому кадру (необязательно)">
  <div class="ctl"><button id="vp">←</button><button class="tg" id="vt"></button><button id="vn">→</button><button id="vx">Закрыть</button></div></div>
 <script>
-const D=@@DATA@@, K=location.pathname.replace(/\\/$/,''), st={};
+const D=@@DATA@@, K=location.pathname.replace(/\\/$/,''), st={}, notes={};
 const lbl=d=>d.in?(st[d.id]==='remove'?'✕ уберём':'убрать'):(st[d.id]==='add'?'★ возьмём':'☆ в альбом');
 function toggle(d){ if(d.in) st[d.id]=st[d.id]==='remove'?undefined:'remove'; else st[d.id]=st[d.id]==='add'?undefined:'add'; draw(d); }
 function draw(d){ const t=document.getElementById('t_'+d.id); t.className='tile '+(st[d.id]||''); t.querySelector('.tg').textContent=lbl(d);
+  let pen=t.querySelector('.pen'); if(notes[d.id]&&!pen){pen=document.createElement('span');pen.className='pen';pen.textContent='✎';t.appendChild(pen);} if(!notes[d.id]&&pen) pen.remove();
   const a=D.filter(x=>st[x.id]==='add').length, r=D.filter(x=>st[x.id]==='remove').length;
   document.getElementById('cnt').textContent='в альбом: '+a+(r?' · убрать: '+r:''); if(cur>=0) vshow(); }
 let cur=-1; const m=document.getElementById('m'); let day='';
@@ -131,18 +139,20 @@ function vshow(){ const d=D[cur]; v.classList.add('on'); const im=document.getEl
   if(d.video){ im.style.display='none'; vv.style.display=''; if(!vv.src.endsWith('/v/'+d.id+'.mp4')) vv.src=K+'/v/'+d.id+'.mp4'; }
   else { vv.pause(); vv.removeAttribute('src'); vv.style.display='none'; im.style.display=''; im.src=K+'/f/'+d.id+'.jpg'; }
   document.getElementById('vc').textContent=d.day+', '+d.time+(d.in?' · уже в альбоме':'')+(d.video?' · видео':'');
-  const b=document.getElementById('vt'); b.textContent=lbl(d); b.className='tg '+(st[d.id]||''); }
+  const b=document.getElementById('vt'); b.textContent=lbl(d); b.className='tg '+(st[d.id]||'');
+  const n=document.getElementById('vnote'); if(document.activeElement!==n) n.value=notes[d.id]||''; }
+document.getElementById('vnote').oninput=e=>{ const d=D[cur]; const v=e.target.value.trim(); if(v) notes[d.id]=v; else delete notes[d.id]; draw(d); };
 document.getElementById('vt').onclick=()=>toggle(D[cur]);
 document.getElementById('vp').onclick=()=>{cur=(cur-1+D.length)%D.length;vshow();};
 document.getElementById('vn').onclick=()=>{cur=(cur+1)%D.length;vshow();};
 document.getElementById('vx').onclick=()=>{cur=-1;v.classList.remove('on');document.getElementById('vv').pause();};
-document.addEventListener('keydown',e=>{ if(cur<0)return; if(e.key==='Escape')document.getElementById('vx').click();
+document.addEventListener('keydown',e=>{ if(cur<0||e.target.id==='vnote')return; if(e.key==='Escape')document.getElementById('vx').click();
   if(e.key==='ArrowLeft')document.getElementById('vp').click(); if(e.key==='ArrowRight')document.getElementById('vn').click(); });
 document.getElementById('s').onclick=async()=>{
-  const add=D.filter(x=>st[x.id]==='add').map(x=>x.id), remove=D.filter(x=>st[x.id]==='remove').map(x=>x.id), comment=document.getElementById('c').value.trim();
-  if(!add.length&&!remove.length&&!comment){ if(!confirm('Ничего не отмечено. Отправить «всё и так хорошо»?')) return; }
+  const add=D.filter(x=>st[x.id]==='add').map(x=>x.id), remove=D.filter(x=>st[x.id]==='remove').map(x=>x.id), comment=document.getElementById('c').value.trim(), title=document.getElementById('at').value.trim(), nt=Object.fromEntries(Object.entries(notes).filter(([k,v])=>v));
+  if(!add.length&&!remove.length&&!comment&&!Object.keys(nt).length&&title===document.getElementById('at').defaultValue){ if(!confirm('Ничего не отмечено. Отправить «всё и так хорошо»?')) return; }
   else if(!confirm('Отправить? Изменить потом будет нельзя: страница одноразовая.')) return;
-  const r=await fetch(K+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({add,remove,comment})});
+  const r=await fetch(K+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({add,remove,comment,notes:nt,album_title:title})});
   document.body.innerHTML='<div class="thanks"><h1>'+(r.ok?'Спасибо!':'Не получилось')+'</h1><p class="lead">'+(r.ok?'Выбор отправлен. Страницу можно закрыть.':'Попробуй ещё раз или напиши Диме.')+'</p></div>'; };
 </script></body></html>"""
 
@@ -169,7 +179,7 @@ def main():
                      "in": f in inalb, "video": meta[f]["type"] == "video"})
     title = a.title or f"{album.get('title', '')}: какие кадры взять"
     page = (PAGE.replace("@@TITLE@@", html.escape(title)).replace("@@N_IN@@", str(sum(d["in"] for d in data)))
-            .replace("@@N_ALL@@", str(len(data))).replace("@@DATA@@", json.dumps(data, ensure_ascii=False).replace("</", "<\\/")))
+            .replace("@@N_ALL@@", str(len(data))).replace("@@ATITLE@@", html.escape(album.get("title", ""), quote=True)).replace("@@DATA@@", json.dumps(data, ensure_ascii=False).replace("</", "<\\/")))
     allowed = set(ids)
     key = secrets.token_urlsafe(18)
     done, outcome = threading.Event(), {}
@@ -236,7 +246,9 @@ def main():
                 res = {"at": datetime.now().isoformat(timespec="seconds"),
                        "add": [i for i in d.get("add", []) if i in allowed],
                        "remove": [i for i in d.get("remove", []) if i in allowed],
-                       "comment": str(d.get("comment", ""))[:4000]}
+                       "comment": str(d.get("comment", ""))[:4000],
+                       "notes": {k: str(v)[:500] for k, v in (d.get("notes") or {}).items() if k in allowed},
+                       "album_title": str(d.get("album_title", ""))[:200]}
             except Exception:
                 return self.send(400, b"bad", "text/plain")
             json.dump(res, open(res_path, "w"), ensure_ascii=False, indent=1)
@@ -278,7 +290,7 @@ def main():
         sys.exit("никто не отправил; остановлено")
     r = outcome["res"]
     print(f"решение → {res_path}: в альбом {len(r['add'])}, убрать {len(r['remove'])}, "
-          f"комментарий: {'есть' if r['comment'] else 'нет'}", flush=True)
+          f"подписей к кадрам: {len(r['notes'])}, название: «{r['album_title']}», комментарий: {'есть' if r['comment'] else 'нет'}", flush=True)
 
 
 if __name__ == "__main__":
