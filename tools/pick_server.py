@@ -221,7 +221,10 @@ def main():
             if m:
                 self.send_header("Content-Range", f"bytes {a}-{b}/{size}")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (ConnectionResetError, BrokenPipeError):   # браузер оборвал загрузку (перемотка, закрыл) — это нормально
+                pass
 
         def do_POST(self):
             p = self.parts()
