@@ -25,6 +25,7 @@ except ImportError:
     pass
 
 FULL, THUMB = 2048, 720
+MAX_VIDEO = 24 * 1024 * 1024   # Cloudflare Pages: файл ≤ 25 МБ
 MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа",
           "сентября", "октября", "ноября", "декабря"]
 TPL = os.path.join(os.path.dirname(__file__), "template.html")
@@ -109,10 +110,18 @@ def _video_job(src, dst_dir, fid):
     out, poster = os.path.join(dst_dir, fid + ".mp4"), os.path.join(dst_dir, fid + "_p.jpg")
     if not os.path.exists(out):                          # пишем во временный файл: оборванный не примем за готовый
         tmp = out + ".part.mp4"
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-vf", "scale='min(1280,iw)':-2",
+        # длинная сторона ≤ 1280 (и у вертикальных), ≤ 30 к/с, битрейт с потолком; файл ≤ 24 МБ (Cloudflare берёт ≤ 25 МБ)
+        vf = "scale='if(gte(iw,ih),min(1280,iw),-2)':'if(gte(iw,ih),-2,min(1280,ih))',fps='min(30,source_fps)'"
+        enc = lambda rate: subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-vf", vf,
                         "-c:v", "libx264", "-crf", "26", "-preset", "medium", "-pix_fmt", "yuv420p",
+                        "-maxrate", rate, "-bufsize", f"{2 * int(rate[:-1])}k",
                         "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", "-map_metadata", "-1",
                         tmp], check=True)
+        enc("3000k")
+        if os.path.getsize(tmp) > MAX_VIDEO:             # длинный ролик: целимся в размер
+            dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src],
+                                       capture_output=True, text=True).stdout.strip() or 60)
+            enc(f"{int(MAX_VIDEO * 8 * 0.85 / dur / 1000) - 96}k")
         os.replace(tmp, out)
     if not os.path.exists(poster):
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "0.5", "-i", out, "-frames:v", "1",
@@ -252,6 +261,8 @@ def main():
                 if land:
                     max(land, key=lambda it: it["w"] * it["h"])["hero"] = True
                     c["items"].sort(key=lambda it: (not it.get("hero"), it["time"]))
+    if t_first.date() == t_last.date():                  # один день: «21 ноября 2026», а не «21–21 ноября»
+        dates, dates_en = f"{fmt_day(t_last)} {t_last.year}", f"{fmt_day_en(t_last)}, {t_last.year}"
     if t_first.year != t_last.year:                      # альбом на несколько лет: год и у дат, и у глав
         dates = f"{fmt_day(t_first)} {t_first.year} – {fmt_day(t_last)} {t_last.year}"
         dates_en = f"{fmt_day_en(t_first)}, {t_first.year} – {fmt_day_en(t_last)}, {t_last.year}"
