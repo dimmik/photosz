@@ -42,16 +42,28 @@ def call(method, url, token, body=None, raw=None, ctype="application/json", trie
 
 
 def site_files():
-    """Файлы сайта = то, что опубликовано в HEAD: корень + папки альбомов (по work/publish.json)."""
-    slugs = {"albums"}
-    for p in subprocess.run(["git", "-C", BASE, "ls-files"], capture_output=True, text=True).stdout.splitlines():
-        if p.endswith("/version.txt") and p.count("/") == 1:     # <slug>/version.txt — признак папки альбома
-            slugs.add(p.split("/")[0])
-    files = [p for p in subprocess.run(["git", "-C", BASE, "ls-files", "--", "index.html", "robots.txt", *slugs],
-                                       capture_output=True, text=True).stdout.splitlines()]
+    """Файлы сайта = то, что опубликовано в HEAD всех репозиториев: корень и индекс — из photosz,
+    папки альбомов — из photosz и из .repos/* (photosz2 и дальше; см. REPOS в album.py)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import album                                         # сайт заменяется целиком: без клона photosz2 его альбомы пропали бы
+    for name in album.REPOS:
+        album.ensure_repo(name)
     out = {}
-    for p in files:   # содержимое из HEAD, а не из рабочей папки (там могут быть несохранённые правки)
-        out["/" + p] = subprocess.run(["git", "-C", BASE, "show", "HEAD:" + p], capture_output=True).stdout
+    dirs = [BASE] + sorted(os.path.join(BASE, ".repos", d) for d in os.listdir(os.path.join(BASE, ".repos"))
+                           if os.path.isdir(os.path.join(BASE, ".repos", d, ".git"))) if os.path.isdir(os.path.join(BASE, ".repos")) else [BASE]
+    for repo in dirs:
+        slugs = {"albums"} if repo == BASE else set()
+        for p in subprocess.run(["git", "-C", repo, "ls-files"], capture_output=True, text=True).stdout.splitlines():
+            if p.endswith("/version.txt") and p.count("/") == 1:     # <slug>/version.txt — признак папки альбома
+                slugs.add(p.split("/")[0])
+        roots = ["index.html", "robots.txt"] if repo == BASE else []
+        if not slugs and not roots:
+            continue
+        files = subprocess.run(["git", "-C", repo, "ls-files", "--", *roots, *slugs], capture_output=True, text=True).stdout.splitlines()
+        for p in files:   # содержимое из HEAD, а не из рабочей папки (там могут быть несохранённые правки)
+            if "/" + p in out:
+                sys.exit(f"файл /{p} есть в двух репозиториях — slug занят дважды")
+            out["/" + p] = subprocess.run(["git", "-C", repo, "show", "HEAD:" + p], capture_output=True).stdout
     return out
 
 

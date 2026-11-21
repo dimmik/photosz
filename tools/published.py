@@ -17,7 +17,7 @@ REPO = os.path.dirname(HERE)
 SUFFIXES = (".jpg", "_t.jpg", ".mp4", "_p.jpg")
 
 
-def missing(root, slug):
+def missing(root, slug, repo_dir=REPO):
     sys.path.insert(0, HERE)
     import publish
     work = os.path.join(root, "work")
@@ -29,7 +29,7 @@ def missing(root, slug):
                      iterations=publish.ITER).derive(norm.encode())
     fname = lambda n: hmac.new(key, b"\0".join([b"name", n.encode()]), hashlib.sha256).digest().hex()[:20] + ".bin"
     names = {fname(r["id"] + s): r["id"] for r in json.load(open(os.path.join(work, "meta.json"))) for s in SUFFIXES}
-    git = lambda *a: subprocess.run(["git", "-C", REPO, *a], capture_output=True, text=True).stdout
+    git = lambda *a: subprocess.run(["git", "-C", repo_dir, *a], capture_output=True, text=True).stdout
     ever = set()
     for c in git("log", "--format=%H", "--", slug).split():
         for path in git("ls-tree", "--name-only", "-r", c, f"{slug}/data").split():
@@ -43,7 +43,9 @@ def missing(root, slug):
 
 if __name__ == "__main__":
     root = sys.argv[1]
-    slug = sys.argv[2] if len(sys.argv) > 2 else json.load(open(os.path.join(root, "work", "publish.json")))["slug"]
-    gone = missing(root, slug)
+    pj = json.load(open(os.path.join(root, "work", "publish.json")))
+    slug = sys.argv[2] if len(sys.argv) > 2 else pj["slug"]
+    repo_dir = REPO if pj.get("repo", "photosz") == "photosz" else os.path.join(REPO, ".repos", pj["repo"])
+    gone = missing(root, slug, repo_dir)
     print("\n".join(gone) if gone else "ничего не пропало")
     sys.exit(1 if gone else 0)

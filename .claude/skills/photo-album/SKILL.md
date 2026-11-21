@@ -152,6 +152,13 @@ description: Делает из зипа/папки с фото и видео п�
 
 ## Хостинг: Cloudflare + GitHub
 
+**Несколько репозиториев.** У GitHub лимит ~1 ГБ на репозиторий. `photosz` заполнен (86%), поэтому новые альбомы
+идут в `dimmik/photosz2` (`NEW_REPO` и `REPOS` в tools/album.py; локальный клон — `.repos/photosz2`, создаётся сам).
+Репозиторий альбома закрепляется в `work/publish.json` (`"repo"`); старые альбомы без пометки — в `photosz`.
+Индекс `albums/` и зашифрованная копия `backup/` — всегда в `photosz`. Cloudflare — один сайт `photosz.pages.dev`:
+`cfpages.py` собирает его из всех репозиториев (сам клонирует недостающие). Запасная ссылка GitHub — по репозиторию
+альбома (`dimmik.github.io/photosz2/<slug>/`). `album.py usage` показывает место по каждому репозиторию.
+
 `album.py publish` коммитит и пушит в GitHub, затем `tools/cfpages.py deploy` выкладывает HEAD на Cloudflare Pages
 (`https://photosz.pages.dev`). Это основной адрес: ссылки для рассылки — на него. GitHub Pages — запасной;
 если у GitHub сбой Actions (сборка в очереди или «errored»), публикация не падает, а говорит об этом.

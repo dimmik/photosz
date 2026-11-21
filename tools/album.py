@@ -24,6 +24,13 @@ BASE = os.path.dirname(HERE)
 REPO_DIR = BASE                # корень проекта = репозиторий (см. .gitignore)
 REPO = "dimmik/photosz"
 PAGES = "https://dimmik.github.io/photosz"
+# Репозитории на GitHub (лимит ~1 ГБ на каждый). Новые альбомы идут в NEW_REPO; старые остаются, где были
+# (репозиторий альбома записан в work/publish.json). Индекс albums/ и зашифрованная копия — всегда в photosz.
+# Cloudflare Pages — один сайт photosz.pages.dev, cfpages.py собирает его из всех репозиториев.
+REPOS = {"photosz": {"dir": BASE, "repo": "dimmik/photosz", "pages": "https://dimmik.github.io/photosz"},
+         "photosz2": {"dir": os.path.join(BASE, ".repos", "photosz2"), "repo": "dimmik/photosz2",
+                      "pages": "https://dimmik.github.io/photosz2"}}
+NEW_REPO = "photosz2"
 CF_CONF = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cloudflare.json")
 CF = "https://photosz.pages.dev" if os.path.exists(CF_CONF) else None    # зеркало на Cloudflare Pages (основное)
 INDEX_ROOT = os.path.join(BASE, ".albums-index")   # источник индекса; вне git, как и всё с ключами
@@ -236,8 +243,8 @@ def slugify(s):
     return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
 
 
-def gh(path, token):
-    req = urllib.request.Request("https://api.github.com/repos/" + REPO + path,
+def gh(path, token, repo=REPO):
+    req = urllib.request.Request("https://api.github.com/repos/" + repo + path,
                                  headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json"})
     return json.load(urllib.request.urlopen(req, timeout=30))
 
@@ -247,43 +254,88 @@ WARN_SHARE = 0.8               # больше 80% — предлагаем но�
 
 
 def cmd_usage():
-    """Сколько занято: опубликованный сайт (файлы в HEAD) и весь репозиторий с историей (по API GitHub)."""
-    out = subprocess.run(["git", "-C", REPO_DIR, "ls-tree", "-r", "-l", "HEAD"], capture_output=True, text=True, check=True).stdout
-    site, by = 0, {}
-    for line in out.splitlines():
-        meta, path = line.split("\t", 1)
-        size = meta.split()[3]
-        if size.isdigit():
-            site += int(size)
-            by[path.split("/")[0]] = by.get(path.split("/")[0], 0) + int(size)
-    repo = None
-    try:
-        repo = gh("", open(os.path.join(BASE, "token.txt")).read().strip())["size"] * 1024
-    except Exception as e:
-        print("размер репозитория по API не получен:", e)
+    """Сколько занято в каждом репозитории: опубликованный сайт (файлы в HEAD) и репозиторий с историей (API GitHub).
+    Возвращает долю для репозитория, куда идут новые альбомы (NEW_REPO)."""
     mb = lambda b: b / 1048576
-    print(f"сайт (Pages): {mb(site):.0f} МБ из {LIMIT_MB} ({mb(site) / LIMIT_MB:.0%})")
-    if repo is not None:
-        print(f"репозиторий с историей: {mb(repo):.0f} МБ из {LIMIT_MB} ({mb(repo) / LIMIT_MB:.0%})")
-    print("  " + ", ".join(f"{k} {mb(v):.0f}" for k, v in sorted(by.items(), key=lambda x: -x[1]) if v > 1048576))
-    worst = max(site, repo or 0) / 1048576 / LIMIT_MB
+    token = open(os.path.join(BASE, "token.txt")).read().strip()
+    res = {}
+    for name, r in REPOS.items():
+        site, by = 0, {}
+        if os.path.isdir(os.path.join(r["dir"], ".git")):
+            out = subprocess.run(["git", "-C", r["dir"], "ls-tree", "-r", "-l", "HEAD"], capture_output=True, text=True).stdout
+            for line in out.splitlines():
+                meta, path = line.split("\t", 1)
+                size = meta.split()[3]
+                if size.isdigit():
+                    site += int(size)
+                    by[path.split("/")[0]] = by.get(path.split("/")[0], 0) + int(size)
+        repo = None
+        try:
+            repo = gh("", token, r["repo"])["size"] * 1024
+        except Exception as e:
+            print(f"{name}: размер по API не получен:", e)
+        print(f"{name}{' (новые альбомы)' if name == NEW_REPO else ''}: сайт {mb(site):.0f} МБ из {LIMIT_MB} ({mb(site) / LIMIT_MB:.0%})"
+              + (f", репозиторий с историей {mb(repo):.0f} МБ ({mb(repo) / LIMIT_MB:.0%})" if repo is not None else ""))
+        if by:
+            print("  " + ", ".join(f"{k} {mb(v):.0f}" for k, v in sorted(by.items(), key=lambda x: -x[1]) if v > 1048576))
+        res[name] = max(site, repo or 0) / 1048576 / LIMIT_MB
+    worst = res.get(NEW_REPO, 0)
     if worst > WARN_SHARE:
-        print(f"ВНИМАНИЕ: занято {worst:.0%} (> {WARN_SHARE:.0%}) — предложи пользователю новый репозиторий")
+        print(f"ВНИМАНИЕ: {NEW_REPO} занят на {worst:.0%} (> {WARN_SHARE:.0%}) — предложи пользователю новый репозиторий")
     return worst
 
 
-def cmd_push():
+def cmd_push(repo_dir=REPO_DIR):
     """Push в origin/master; токен из token.txt идёт заголовком и не пишется в .git/config."""
     token = open(os.path.join(BASE, "token.txt")).read().strip()
     auth = "Authorization: Basic " + base64.b64encode(f"x-access-token:{token}".encode()).decode()
     for attempt in range(3):            # большой пуш иногда обрывается — повторяем; токен в ошибку не печатаем
-        r = subprocess.run(["git", "-C", REPO_DIR, "-c", "http.extraHeader=" + auth, "push", "-q", "-u", "origin", "master"],
+        r = subprocess.run(["git", "-C", repo_dir, "-c", "http.extraHeader=" + auth, "push", "-q", "-u", "origin", "master"],
                            capture_output=True, text=True)
         if r.returncode == 0:
             return
         print(f"push не прошёл (попытка {attempt + 1}): {r.stderr.strip()[-300:]}", flush=True)
         time.sleep(10)
     sys.exit("push не прошёл три раза; коммит есть локально — повторить: python3 tools/album.py push")
+
+
+def album_repo(root):
+    """В каком репозитории живёт альбом: из publish.json; уже публиковавшийся без пометки — photosz; новый — NEW_REPO."""
+    if os.path.abspath(root) == INDEX_ROOT:
+        return "photosz"
+    p = os.path.join(root, "work", "publish.json")
+    return json.load(open(p)).get("repo", "photosz") if os.path.exists(p) else NEW_REPO
+
+
+def ensure_repo(name):
+    """Локальная копия репозитория (для photosz2 — .repos/photosz2, клонируется при первой публикации)."""
+    r = REPOS[name]
+    if os.path.isdir(os.path.join(r["dir"], ".git")):
+        return r
+    token = open(os.path.join(BASE, "token.txt")).read().strip()
+    auth = "Authorization: Basic " + base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    os.makedirs(os.path.dirname(r["dir"]), exist_ok=True)
+    subprocess.run(["git", "-c", "http.extraHeader=" + auth, "clone", "-q", f"https://github.com/{r['repo']}.git", r["dir"]],
+                   check=True, capture_output=True, text=True)
+    for k, v in (("user.name", "dimmik"), ("user.email", "dimmik@users.noreply.github.com")):
+        subprocess.run(["git", "-C", r["dir"], "config", k, v], check=True)
+    for f in ("robots.txt", ".nojekyll"):                # не индексировать; Pages без Jekyll
+        if not os.path.exists(os.path.join(r["dir"], f)):
+            shutil.copy(os.path.join(BASE, f), os.path.join(r["dir"], f))
+    return r
+
+
+def commit_push(repo_dir, paths, msg):
+    """git add (только существующие пути) → commit, если есть изменения → push. True, если был коммит."""
+    paths = [p for p in paths if os.path.exists(os.path.join(repo_dir, p)) or
+             subprocess.run(["git", "-C", repo_dir, "ls-files", "--error-unmatch", p], capture_output=True).returncode == 0]
+    subprocess.run(["git", "-C", repo_dir, "add", "-A", "--", *paths], check=True)
+    if subprocess.run(["git", "-C", repo_dir, "diff", "--cached", "--quiet"]).returncode:
+        subprocess.run(["git", "-C", repo_dir, "commit", "-q", "-m", msg + "\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n"
+                        "Claude-Session: https://claude.ai/code/session_01NQ21Scm392QTk1ZNBhKkXA"], check=True)
+        cmd_push(repo_dir)
+        return True
+    return False
 
 
 def build_index():
@@ -301,6 +353,7 @@ def build_index():
             continue
         a = json.load(open(os.path.join(root, "album", "album.json"), encoding="utf-8"))
         slug = json.load(open(os.path.join(root, "work", "publish.json")))["slug"]
+        pages = REPOS[album_repo(root)]["pages"]
         key = open(kp).read().strip()
         src = os.path.join(root, "album", "media")
         if a.get("chapters"):
@@ -317,7 +370,7 @@ def build_index():
                 im.save(os.path.join(media, name), quality=78)
             pics.append(name)
         albums.append({"title": a["title"], "dates": a["dates"], "slug": slug, "key": key,
-                       "url": f"{PAGES}/{slug}/#k={key}", **({"url_cf": f"{CF}/{slug}/#k={key}"} if CF else {}),
+                       "url": f"{pages}/{slug}/#k={key}", **({"url_cf": f"{CF}/{slug}/#k={key}"} if CF else {}),
                        "pics": pics})
     json.dump({"template": "albums.html", "title": "Все альбомы", "dates": f"{len(albums)}", "albums": albums},
               open(os.path.join(INDEX_ROOT, "album", "album.json"), "w", encoding="utf-8"), ensure_ascii=False)
@@ -345,27 +398,33 @@ def root_of(slug):
 
 
 def cmd_publish(root, slug=None, allow_remove=""):
-    saved = os.path.join(root, "work", "publish.json")    # slug закрепляется при первой публикации
+    saved = os.path.join(root, "work", "publish.json")    # slug и репозиторий закрепляются при первой публикации
     if not slug and os.path.exists(saved):
         slug = json.load(open(saved))["slug"]
     slug = slug or slugify(os.path.basename(os.path.abspath(root)))
+    name = album_repo(root)
+    r = ensure_repo(name)
+    repo_dir, pages = r["dir"], r["pages"]
     # папка сайта <repo>/<slug> не должна совпадать с рабочей папкой альбома: иначе git add заберёт оригиналы
-    site = os.path.abspath(os.path.join(REPO_DIR, slug))
+    site = os.path.abspath(os.path.join(repo_dir, slug))
     if site == os.path.abspath(root) or any(os.path.exists(os.path.join(site, d)) for d in ("work", "src")):
         sys.exit(f"slug «{slug}» совпадает с папкой с исходниками ({site}); задай другой: --slug <имя>")
-    json.dump({"slug": slug}, open(saved, "w"))
+    for other, o in REPOS.items():                       # один slug — одна папка на общем сайте Cloudflare
+        if other != name and os.path.exists(os.path.join(o["dir"], slug, "version.txt")):
+            sys.exit(f"slug «{slug}» уже занят в репозитории {other}; задай другой: --slug <имя>")
+    json.dump({"slug": slug, "repo": name}, open(saved, "w"))
     token = open(os.path.join(BASE, "token.txt")).read().strip()
     if os.path.abspath(root) != INDEX_ROOT:              # стоп-лист: людей из never.npz не публикуем
         py("faces.py", root, "guard")
         # из уже выданного альбома ничего не пропадает молча: только с явного «да» пользователя (--allow-remove id,id)
         import published
         ok = {x.strip() for x in allow_remove.split(",") if x.strip()}
-        gone = [f for f in published.missing(root, slug) if f not in ok]
+        gone = [f for f in published.missing(root, slug, repo_dir) if f not in ok]
         if gone:
             sys.exit("СТОП: эти кадры уже были в опубликованном альбоме, а сейчас их нет:\n  " + "\n  ".join(gone) +
                      "\nВерни их (overrides.json) или, если пользователь явно согласился убрать, "
                      "повтори с --allow-remove " + ",".join(gone))
-    out = subprocess.run([sys.executable, os.path.join(HERE, "publish.py"), root, "--repo", REPO_DIR, "--slug", slug],
+    out = subprocess.run([sys.executable, os.path.join(HERE, "publish.py"), root, "--repo", repo_dir, "--slug", slug],
                          check=True, capture_output=True, text=True).stdout
     key = re.search(r"^KEY (\S+)", out, re.M).group(1)
     print(out.replace(key, "<ключ>"))
@@ -373,26 +432,20 @@ def cmd_publish(root, slug=None, allow_remove=""):
     if not is_index:                                     # индекс обновляется при каждой публикации
         build_index()
 
-    g = lambda *a, **kw: subprocess.run(["git", "-C", REPO_DIR, *a], check=True, text=True, **kw)
-    if not os.path.isdir(os.path.join(REPO_DIR, ".git")):
-        g("init", "-q", "-b", "master")
-        g("config", "user.name", "dimmik")
-        g("config", "user.email", "dimmik@users.noreply.github.com")
-        g("remote", "add", "origin", f"https://github.com/{REPO}.git")
-    ign = os.path.join(REPO_DIR, ".gitignore")          # белый список: открываем папку альбома
-    if f"!/{slug}/" not in open(ign).read().split():
-        open(ign, "a").write(f"!/{slug}/\n")
-    if not is_index and f"!/{INDEX_SLUG}/" not in open(ign).read().split():
-        open(ign, "a").write(f"!/{INDEX_SLUG}/\n")
+    ign = os.path.join(BASE, ".gitignore")               # photosz: белый список открывает папки альбомов и индекса
+    for sl in ([slug] if name == "photosz" else []) + ([] if is_index else [INDEX_SLUG]):
+        if f"!/{sl}/" not in open(ign).read().split():
+            open(ign, "a").write(f"!/{sl}/\n")
     py("backup.py", "save", "core")                      # зашифрованная копия рабочих файлов (фраза не нужна)
-    g("add", "-A", "--", slug, INDEX_SLUG, "index.html", "robots.txt", ".nojekyll", ".gitignore", "backup")
-    if subprocess.run(["git", "-C", REPO_DIR, "diff", "--cached", "--quiet"]).returncode:
-        g("commit", "-q", "-m", f"Publish album {slug}\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n"
-          "Claude-Session: https://claude.ai/code/session_01XarAvaQnY5vkZUXThqQNei")
-        cmd_push()
+    if name == "photosz":
+        commit_push(BASE, [slug, INDEX_SLUG, "index.html", "robots.txt", ".nojekyll", ".gitignore", "backup"], f"Publish album {slug}")
+    else:                                                # альбом — в своём репозитории, индекс и копия — в photosz
+        commit_push(repo_dir, [slug, "robots.txt", ".nojekyll"], f"Publish album {slug}")
+        commit_push(BASE, [INDEX_SLUG, ".gitignore", "backup"], f"Index and backup after publishing {slug} to {name}")
+    g = lambda *a, **kw: subprocess.run(["git", "-C", repo_dir, *a], check=True, text=True, **kw)
     sha = g("rev-parse", "HEAD", capture_output=True).stdout.strip()
     a = json.load(open(os.path.join(root, "album", "album.json")))
-    ver = open(os.path.join(REPO_DIR, slug, "version.txt")).read().strip()
+    ver = open(os.path.join(repo_dir, slug, "version.txt")).read().strip()
 
     def live(base, tries=30):                            # страница отдаёт новую версию (CDN может опаздывать)
         for _ in range(tries):
@@ -413,9 +466,9 @@ def cmd_publish(root, slug=None, allow_remove=""):
         print("Cloudflare: " + ("живая страница обновилась" if ok_cf else "страница ещё не обновилась — проверь позже"))
 
     try:
-        gh("/pages", token)
+        gh("/pages", token, r["repo"])
     except urllib.error.HTTPError:                       # Pages ещё не включён — включаем
-        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/pages", method="POST",
+        req = urllib.request.Request(f"https://api.github.com/repos/{r['repo']}/pages", method="POST",
                                      data=json.dumps({"source": {"branch": "master", "path": "/"}}).encode(),
                                      headers={"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json"})
         urllib.request.urlopen(req, timeout=30)
@@ -423,7 +476,7 @@ def cmd_publish(root, slug=None, allow_remove=""):
     gh_state = "timeout"
     for _ in range(60):
         try:
-            b = gh("/pages/builds/latest", token)
+            b = gh("/pages/builds/latest", token, r["repo"])
             if b.get("status") == "built" and b.get("commit") == sha:
                 gh_state = "built"
                 break
@@ -433,15 +486,15 @@ def cmd_publish(root, slug=None, allow_remove=""):
         except urllib.error.HTTPError:
             pass
         time.sleep(10)
-    ok_gh = gh_state == "built" and live(PAGES)
+    ok_gh = gh_state == "built" and live(pages)
     if not ok_gh:
         msg = f"GitHub Pages: {'ошибка сборки' if gh_state == 'errored' else 'не дождались сборки'} (часто — сбой Actions на стороне GitHub)"
         if not ok_cf:
             sys.exit(msg + ", и Cloudflare не обновился — проверь вручную")
         print(msg + "; Cloudflare работает, ссылка на него уже годится")
-    main_url = f"{CF if ok_cf else PAGES}/{slug}/"
+    main_url = f"{CF if ok_cf else pages}/{slug}/"
     print(f"\nГОТОВО\nссылка: {main_url}#k={key}\nключ:   {key}"
-          + (f"\nзапасная (GitHub): {PAGES}/{slug}/#k={key}" + ("" if ok_gh else " — ещё не обновилась") if ok_cf else "")
+          + (f"\nзапасная (GitHub): {pages}/{slug}/#k={key}" + ("" if ok_gh else " — ещё не обновилась") if ok_cf else "")
           + f"\n\nТекст для рассылки (RU):\nФотоальбом «{a['title']}», {a['dates']}: {main_url}#k={key}\n\nText to share (EN):\n"
           f"Photo album “{a.get('title_en') or a['title']}”, {a.get('dates_en') or a['dates']}: {main_url}#k={key}&l=en")
 
