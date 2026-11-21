@@ -32,10 +32,17 @@ def prepare(root, ids, meta):
     os.makedirs(out, exist_ok=True)
     for fid in ids:
         full, thumb = os.path.join(out, fid + ".jpg"), os.path.join(out, fid + "_t.jpg")
-        if os.path.exists(full) and os.path.exists(thumb):
+        if os.path.exists(full) and os.path.exists(thumb) and (meta[fid]["type"] != "video" or os.path.exists(os.path.join(out, fid + ".mp4"))):
             continue
         src = os.path.join(root, "src", meta[fid]["file"])
         if meta[fid]["type"] == "video":
+            mp4 = os.path.join(out, fid + ".mp4")             # лёгкая копия для просмотра: ≤ 720 px, без звука не режем
+            if not os.path.exists(mp4):
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-vf",
+                                "scale='if(gte(iw,ih),min(720,iw),-2)':'if(gte(iw,ih),-2,min(720,ih))',fps='min(30,source_fps)'",
+                                "-c:v", "libx264", "-crf", "30", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                                "-c:a", "aac", "-b:a", "64k", "-movflags", "+faststart", "-map_metadata", "-1", mp4 + ".part.mp4"], check=True)
+                os.replace(mp4 + ".part.mp4", mp4)
             tmp = os.path.join(out, fid + "_v.jpg")
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", "0.5", "-i", src, "-frames:v", "1", tmp], check=True)
             src = tmp
@@ -83,7 +90,7 @@ button{font:inherit;border:0;border-radius:99px;padding:6px 11px;cursor:pointer;
 .send{background:var(--acc);color:#fff;font-weight:600;padding:10px 18px}
 .view{position:fixed;inset:0;background:rgba(10,8,6,.94);display:none;flex-direction:column;z-index:10}
 .view.on{display:flex}
-.view img{flex:1;min-height:0;object-fit:contain;width:100%}
+.view img,.view video{flex:1;min-height:0;object-fit:contain;width:100%;background:#000}
 .view .ctl{display:flex;gap:10px;justify-content:center;align-items:center;padding:12px 16px calc(12px + env(safe-area-inset-bottom));flex-wrap:wrap}
 .view .ctl button{background:#3a332b;color:#fff;padding:10px 16px}
 .view .ctl .tg.add{background:var(--acc)} .view .ctl .tg.remove{background:var(--bad)}
@@ -93,7 +100,7 @@ button{font:inherit;border:0;border-radius:99px;padding:6px 11px;cursor:pointer;
 <header>
  <h1>@@TITLE@@</h1>
  <p class="lead">Это кадры с твоего телефона. Отметь <b>★ в альбом</b> те, которые точно должны попасть в альбом.
- Если какой-то из уже взятых не нравится, нажми у него <b>✕ убрать</b>. Нажми на фото, чтобы посмотреть крупно.</p>
+ Если какой-то из уже взятых не нравится, нажми у него <b>✕ убрать</b>. Нажми на фото или видео, чтобы посмотреть крупно.</p>
  <div class="legend"><span><b>@@N_IN@@</b> уже в альбоме</span><span><b>@@N_ALL@@</b> всего кадров</span></div>
 </header>
 <main id="m"></main>
@@ -102,7 +109,7 @@ button{font:inherit;border:0;border-radius:99px;padding:6px 11px;cursor:pointer;
  <span class="count" id="cnt"></span>
  <button class="send" id="s">Отправить</button>
 </div></div>
-<div class="view" id="v"><div class="cap" id="vc"></div><img id="vi" alt="">
+<div class="view" id="v"><div class="cap" id="vc"></div><img id="vi" alt=""><video id="vv" controls playsinline preload="metadata"></video>
  <div class="ctl"><button id="vp">←</button><button class="tg" id="vt"></button><button id="vn">→</button><button id="vx">Закрыть</button></div></div>
 <script>
 const D=@@DATA@@, K=location.pathname.replace(/\\/$/,''), st={};
@@ -120,13 +127,15 @@ D.forEach((d,i)=>{ if(d.day!==day){ day=d.day; const h=document.createElement('h
   t.querySelector('img').onclick=()=>{cur=i;vshow();}; t.querySelector('.tg').onclick=()=>toggle(d);
   m.lastChild.appendChild(t); draw(d); });
 const v=document.getElementById('v');
-function vshow(){ const d=D[cur]; v.classList.add('on'); document.getElementById('vi').src=K+'/f/'+d.id+'.jpg';
-  document.getElementById('vc').textContent=d.day+', '+d.time+(d.in?' · уже в альбоме':'')+(d.video?' · видео (кадр)':'');
+function vshow(){ const d=D[cur]; v.classList.add('on'); const im=document.getElementById('vi'), vv=document.getElementById('vv');
+  if(d.video){ im.style.display='none'; vv.style.display=''; if(!vv.src.endsWith('/v/'+d.id+'.mp4')) vv.src=K+'/v/'+d.id+'.mp4'; }
+  else { vv.pause(); vv.removeAttribute('src'); vv.style.display='none'; im.style.display=''; im.src=K+'/f/'+d.id+'.jpg'; }
+  document.getElementById('vc').textContent=d.day+', '+d.time+(d.in?' · уже в альбоме':'')+(d.video?' · видео':'');
   const b=document.getElementById('vt'); b.textContent=lbl(d); b.className='tg '+(st[d.id]||''); }
 document.getElementById('vt').onclick=()=>toggle(D[cur]);
 document.getElementById('vp').onclick=()=>{cur=(cur-1+D.length)%D.length;vshow();};
 document.getElementById('vn').onclick=()=>{cur=(cur+1)%D.length;vshow();};
-document.getElementById('vx').onclick=()=>{cur=-1;v.classList.remove('on');};
+document.getElementById('vx').onclick=()=>{cur=-1;v.classList.remove('on');document.getElementById('vv').pause();};
 document.addEventListener('keydown',e=>{ if(cur<0)return; if(e.key==='Escape')document.getElementById('vx').click();
   if(e.key==='ArrowLeft')document.getElementById('vp').click(); if(e.key==='ArrowRight')document.getElementById('vn').click(); });
 document.getElementById('s').onclick=async()=>{
@@ -191,7 +200,28 @@ def main():
             if p and len(p) == 2 and p[0] in ("t", "f") and p[1].endswith(".jpg") and p[1][:-4] in allowed:
                 fn = os.path.join(pick_dir, p[1][:-4] + ("_t.jpg" if p[0] == "t" else ".jpg"))
                 return self.send(200, open(fn, "rb").read(), "image/jpeg", "private, max-age=3600")
+            if p and len(p) == 2 and p[0] == "v" and p[1].endswith(".mp4") and p[1][:-4] in allowed:
+                return self.send_video(os.path.join(pick_dir, p[1]))
             self.send(404, b"Not found", "text/plain")
+
+        def send_video(self, fn):
+            if not os.path.exists(fn):
+                return self.send(404, b"Not found", "text/plain")
+            size = os.path.getsize(fn)
+            m = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
+            a, b = (int(m[1] or 0), int(m[2]) if m[2] else size - 1) if m else (0, size - 1)
+            b = min(b, size - 1)
+            with open(fn, "rb") as f:
+                f.seek(a)
+                body = f.read(b - a + 1)
+            self.send_response(206 if m else 200)
+            for k, v in (("Content-Type", "video/mp4"), ("Accept-Ranges", "bytes"), ("Content-Length", str(len(body))),
+                         ("Cache-Control", "private, max-age=3600"), ("Referrer-Policy", "no-referrer"), ("X-Robots-Tag", "noindex")):
+                self.send_header(k, v)
+            if m:
+                self.send_header("Content-Range", f"bytes {a}-{b}/{size}")
+            self.end_headers()
+            self.wfile.write(body)
 
         def do_POST(self):
             p = self.parts()
