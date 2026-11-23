@@ -101,7 +101,7 @@ def files_of(part):
         for f in sorted(glob.glob(os.path.join(memory_dir(), "*"))):
             if os.path.isfile(f):
                 out.append((MEM + "/" + os.path.basename(f), f))
-        for f in ("plan.private.md", "album-candidates.md", "tools/archive.py", ".faces/never.npz", ".faces/people.npz",
+        for f in ("plan.private.md", "album-candidates.md", "album-candidates-olga.md", "tools/archive.py", ".faces/never.npz", ".faces/people.npz",
                   "phone-index/vote/album/album.json", "cloudflare.json"):   # страница выбора собрана вручную, build её не восстановит
             add(os.path.join(BASE, f))
         for root in album_roots():
@@ -112,8 +112,9 @@ def files_of(part):
                     add(f)
     else:
         for pat in ("*.json", "*.jsonl", "*.npz", "*.txt"):
-            for f in sorted(glob.glob(os.path.join(BASE, "phone-index", pat))):
-                add(f)
+            for idx in ("phone-index", "phone-index-olga"):     # архивы телефонов: ваш и Ольгин
+                for f in sorted(glob.glob(os.path.join(BASE, idx, pat))):
+                    add(f)
     return sorted(set(out))
 
 
