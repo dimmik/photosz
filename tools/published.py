@@ -22,8 +22,8 @@ def missing(root, slug, repo_dir=REPO):
     import publish
     work = os.path.join(root, "work")
     salt_p = os.path.join(work, "access.salt")
-    if not os.path.exists(salt_p):
-        return []                                          # ещё не публиковался
+    if not os.path.exists(salt_p) or not os.path.exists(os.path.join(work, "meta.json")):
+        return []                                          # ещё не публиковался или служебная страница без кадров (выбор, индекс)
     norm = "".join(c for c in publish.access_key(work).upper() if c.isalnum())
     key = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=open(salt_p, "rb").read(),
                      iterations=publish.ITER).derive(norm.encode())
